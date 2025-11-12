@@ -220,6 +220,10 @@ def upgrade() -> None:
     )
     op.add_column(
         "prospect_connectors",
+        sa.Column("shared_connections_count", sa.Integer(), nullable=True),
+    )
+    op.add_column(
+        "prospect_connectors",
         sa.Column("last_seen_at", sa.TIMESTAMP(timezone=True), nullable=True),
     )
     op.add_column(
@@ -408,6 +412,7 @@ def downgrade() -> None:
     op.drop_column("prospect_connectors", "updated_by_id")
     op.drop_column("prospect_connectors", "created_by_id")
     op.drop_column("prospect_connectors", "last_seen_at")
+    op.drop_column("prospect_connectors", "shared_connections_count")
     op.drop_column("prospect_connectors", "confidence_score")
     op.drop_column("prospect_connectors", "algorithm_version")
     op.drop_column("prospect_connectors", "status_reason")
