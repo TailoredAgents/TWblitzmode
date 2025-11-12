@@ -2,7 +2,7 @@ spec: "1"
 databases:
   - name: blitz-link-db
     plan: starter
-redis:
+keyvalue:
   - name: blitz-link-redis
     plan: starter
 services:
@@ -16,11 +16,13 @@ services:
     healthCheckPath: /
     envVars:
       - key: DATABASE_URL
-        fromDatabase: blitz-link-db
-        property: connectionString
+        fromDatabase:
+          name: blitz-link-db
+          property: connectionString
       - key: REDIS_URL
-        fromService: blitz-link-redis
-        property: connectionString
+        fromKeyValue:
+          name: blitz-link-redis
+          property: connectionString
       - key: PRIMARY_MODEL
         value: gpt-4.1
       - key: OPENAI_API_KEY
@@ -51,8 +53,10 @@ services:
     startCommand: npm run start
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        fromService: blitz-link-api
-        property: url
+        fromService:
+          name: blitz-link-api
+          type: web
+          property: url
       - key: NEXT_PUBLIC_SITE_URL
         sync: false
       - key: NEXT_PUBLIC_MASTER_LOGIN_PASSWORD
@@ -67,11 +71,13 @@ services:
     region: oregon
     envVars:
       - key: DATABASE_URL
-        fromDatabase: blitz-link-db
-        property: connectionString
+        fromDatabase:
+          name: blitz-link-db
+          property: connectionString
       - key: REDIS_URL
-        fromService: blitz-link-redis
-        property: connectionString
+        fromKeyValue:
+          name: blitz-link-redis
+          property: connectionString
       - key: PRIMARY_MODEL
         value: gpt-4.1
       - key: OPENAI_API_KEY
