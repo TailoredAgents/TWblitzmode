@@ -115,8 +115,8 @@ def upgrade() -> None:
                 END IF;
 
                 -- Drop existing policies on the table
-                FOR pol IN SELECT polname FROM pg_policies WHERE schemaname='public' AND tablename=t.table_name LOOP
-                    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol.polname, t.table_name);
+                FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname='public' AND tablename=t.table_name LOOP
+                    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol.policyname, t.table_name);
                 END LOOP;
 
                 -- Create unified policy bound to app.current_tenant_id

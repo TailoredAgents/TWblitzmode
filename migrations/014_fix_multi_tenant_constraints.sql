@@ -272,7 +272,7 @@ ALTER TABLE connectors FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
     IF EXISTS (
-        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'connectors' AND polname = 'connectors_org_isolation'
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'connectors' AND policyname = 'connectors_org_isolation'
     ) THEN
         DROP POLICY connectors_org_isolation ON connectors;
     END IF;
@@ -284,7 +284,7 @@ $$;
 DO $$
 BEGIN
     IF EXISTS (
-        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'approval_requests' AND polname = 'approval_requests_tenant_isolation'
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'approval_requests' AND policyname = 'approval_requests_tenant_isolation'
     ) THEN
         DROP POLICY approval_requests_tenant_isolation ON approval_requests;
     END IF;
@@ -300,7 +300,7 @@ $$;
 DO $$
 BEGIN
     IF EXISTS (
-        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'agent_decisions' AND polname = 'agent_decisions_tenant_isolation'
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'agent_decisions' AND policyname = 'agent_decisions_tenant_isolation'
     ) THEN
         DROP POLICY agent_decisions_tenant_isolation ON agent_decisions;
     END IF;
@@ -316,7 +316,7 @@ $$;
 DO $$
 BEGIN
     IF EXISTS (
-        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'workflow_templates' AND polname = 'workflow_templates_tenant_isolation'
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'workflow_templates' AND policyname = 'workflow_templates_tenant_isolation'
     ) THEN
         DROP POLICY workflow_templates_tenant_isolation ON workflow_templates;
     END IF;
@@ -332,7 +332,7 @@ $$;
 DO $$
 BEGIN
     IF EXISTS (
-        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'workflow_executions' AND polname = 'workflow_executions_tenant_isolation'
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'workflow_executions' AND policyname = 'workflow_executions_tenant_isolation'
     ) THEN
         DROP POLICY workflow_executions_tenant_isolation ON workflow_executions;
     END IF;
@@ -348,7 +348,7 @@ $$;
 DO $$
 BEGIN
     IF EXISTS (
-        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'workflow_node_executions' AND polname = 'workflow_node_executions_tenant_isolation'
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'workflow_node_executions' AND policyname = 'workflow_node_executions_tenant_isolation'
     ) THEN
         DROP POLICY workflow_node_executions_tenant_isolation ON workflow_node_executions;
     END IF;
