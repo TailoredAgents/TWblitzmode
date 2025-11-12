@@ -29,14 +29,18 @@ const nextConfig = {
     NEXT_PUBLIC_WEBSOCKET_URL: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:8888',
   },
 
-  // API proxying for development
+  // API proxying for development only
   async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8888'}/api/:path*`,
-      },
-    ];
+    // Only use rewrites in development - in production, API calls go directly to NEXT_PUBLIC_API_URL
+    if (process.env.NODE_ENV === 'development') {
+      return [
+        {
+          source: '/api/:path*',
+          destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8888'}/api/:path*`,
+        },
+      ];
+    }
+    return [];
   },
 
   // Security headers
