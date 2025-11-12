@@ -1,0 +1,13 @@
+_artifacts/
+_bundle_import/
+logs/
+__pycache__/
+*.pyc
+.env
+.env.*
+.DS_Store
+.venv/
+node_modules/
+frontend/.next/
+dist/
+build/
