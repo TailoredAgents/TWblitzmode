@@ -7,15 +7,18 @@ Uses psycopg2 directly with autocommit for DDL operations.
 import os
 import psycopg2
 
-# Database connection
-database_url = os.getenv("DATABASE_URL", "postgresql://jeffrey:50LdbkmVperCoj4ipQasqYfQMgHAMokj@dpg-d40kk3n5r7bs73fe5cvg-a.virginia-postgres.render.com/vlminitallwave")
+# Database connection (must be provided via env)
+database_url = os.getenv("DATABASE_URL")
+if not database_url:
+    raise RuntimeError("DATABASE_URL must be set to execute compatibility views")
 
 print("=" * 80)
 print("EXECUTING CORRECTED COMPATIBILITY VIEWS")
 print("=" * 80)
 
 # Read the corrected SQL file
-with open('/Users/jeffreyhacker/TW-VL-MINI/TW-VouchLink-Mini-/migrations/create_compatibility_views_CORRECTED.sql', 'r') as f:
+SQL_PATH = os.path.join(os.path.dirname(__file__), 'create_compatibility_views_CORRECTED.sql')
+with open(SQL_PATH, 'r') as f:
     sql_content = f.read()
 
 # Connect and execute

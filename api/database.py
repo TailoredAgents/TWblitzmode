@@ -1317,48 +1317,9 @@ class AgentEventsDatabase:
         }
 
 def run_migrations():
-    """Run database migrations for PostgreSQL."""
-    conn = DatabaseConnection()
-    conn.connect()
+    """Deprecated: Alembic manages migrations at startup via entrypoint.
 
-    try:
-        logger.info("Running PostgreSQL migrations...")
-        cursor = conn.connection.cursor()
-        cursor.execute(POSTGRES_SCHEMA)
-        conn.commit()
-
-        try:
-            from pathlib import Path
-
-            migration_file = (
-                Path(__file__).parent.parent / "migrations" / "add_agent_events_table.sql"
-            )
-            if migration_file.exists():
-                logger.info("Running agent_events migration...")
-                with open(migration_file, "r", encoding="utf-8") as handle:
-                    migration_sql = handle.read()
-                cursor.execute(migration_sql)
-                conn.commit()
-                logger.info("Agent events migration completed")
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.warning("Agent events migration warning: %s", exc)
-
-        logger.info("PostgreSQL migrations completed successfully")
-    except Exception as exc:
-        error_msg = str(exc).lower()
-        if any(
-            token in error_msg
-            for token in (
-                "already exists",
-                "duplicate_object",
-                "duplicate constraint",
-            )
-        ):
-            logger.warning("Migration warning (continuing): %s", exc)
-            conn.commit()
-        else:
-            logger.error("Migration failed: %s", exc)
-            conn.rollback()
-            raise
-    finally:
-        conn.close()
+    This stub remains for backward compatibility; it no-ops and logs an info
+    message to avoid duplicate/legacy schema management.
+    """
+    logger.info("run_migrations() is deprecated; Alembic upgrade runs at startup. Skipping.")

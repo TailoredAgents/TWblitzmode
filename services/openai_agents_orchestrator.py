@@ -2227,10 +2227,12 @@ Return as JSON with: risk_score, risk_factors, compliance_status, recommendation
         # Integrate with existing approval queue system
         try:
             # Import approval service dynamically to avoid circular imports
-            from services.approval_queue_service import ApprovalQueueService, ApprovalType, ApprovalPriority
+from services.approval_queue_service import ApprovalQueueService, ApprovalType, ApprovalPriority
+import os
 
+            import os
             approval_service = ApprovalQueueService(
-                "postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI"
+                os.getenv("DATABASE_URL")
             )
             await approval_service.initialize()
 
@@ -2300,8 +2302,9 @@ Return as JSON with: risk_score, risk_factors, compliance_status, recommendation
             try:
                 from services.email_scheduler import EmailScheduler
 
+                import os
                 email_scheduler = EmailScheduler(
-                    database_url="postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI"
+                    database_url=os.getenv("DATABASE_URL")
                 )
 
                 # Schedule email for immediate sending

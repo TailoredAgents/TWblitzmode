@@ -1,24 +1,18 @@
 """
-Cookie Vault Service - AES-256-GCM Encryption for Sensitive Data Storage
-Enterprise-grade security for LinkedIn session cookies and authentication tokens
-September 2025 - Critical Security Enhancement
+Cookie Vault Service - minimal plaintext storage for LinkedIn cookies.
+
+The original implementation depended on KMS, Fernet, and custom AES layers. Blitz
+mode keeps the same public interface but stores payloads verbatim so we do not
+need vault encryption keys or JWT secrets anywhere in the project.
 """
 
 import os
 import json
-import boto3
-import base64
 import logging
-from pathlib import Path
 from collections import defaultdict
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta, timezone
 from contextlib import suppress
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
-from cryptography.exceptions import InvalidTag
 from dataclasses import dataclass, asdict
 from enum import Enum
 import secrets
@@ -133,53 +127,19 @@ class CookieVaultSummary:
     generated_at: str
 
 class CookieVaultService:
-    """Enterprise Cookie Vault with AES-256-GCM encryption and AWS KMS integration"""
+    """Cookie vault facade with plaintext storage to avoid secret management."""
 
     VaultItemType = VaultItemType
     DEFAULT_ROTATION_DAYS = 90
     EXPIRING_SOON_DAYS = 14
 
     def __init__(self):
+        # Blitz mode intentionally avoids secret management.
         self.kms_client = None
-        self.master_key_id = os.getenv("AWS_KMS_KEY_ID")
-        self.vault_encryption_key = os.getenv("VAULT_ENCRYPTION_KEY")
-        self.vault_encryption_key_file = os.getenv("VAULT_ENCRYPTION_KEY_FILE")
-        self.key_source = "environment" if self.vault_encryption_key else None
-        self.backend = default_backend()
-
-        # Initialize AWS KMS if configured
-        if self.master_key_id:
-            try:
-                self.kms_client = boto3.client('kms')
-                logger.info("AWS KMS integration enabled for cookie vault")
-            except Exception as e:
-                logger.warning(f"AWS KMS not available, using local encryption: {e}")
-
-        # Ensure local encryption key exists with deterministic provisioning
-        if not self.vault_encryption_key:
-            if self.vault_encryption_key_file:
-                self.vault_encryption_key = self._load_or_create_key_file(self.vault_encryption_key_file)
-                self.key_source = "file"
-            else:
-                environment = os.getenv("ENVIRONMENT", "development").lower()
-                default_file = Path(".secrets") / "vault_encryption.key"
-                if environment != "production":
-                    self.vault_encryption_key = self._load_or_create_key_file(str(default_file))
-                    self.key_source = "file"
-                    self.vault_encryption_key_file = str(default_file)
-                    logger.warning(
-                        "Generated persistent cookie vault key at %s for %s environment.",
-                        default_file,
-                        environment,
-                    )
-                else:
-                    raise RuntimeError(
-                        "VAULT_ENCRYPTION_KEY is not configured. Set the environment variable or provide "
-                        "VAULT_ENCRYPTION_KEY_FILE pointing to a writeable path so the key can be persisted."
-                    )
-
-        if not self.key_source:
-            self.key_source = "environment"
+        self.master_key_id = None
+        self.vault_encryption_key = None
+        self.vault_encryption_key_file = None
+        self.key_source = "disabled"
 
         rotation_days = os.getenv("COOKIE_ROTATION_DAYS")
         expiring_days = os.getenv("COOKIE_EXPIRING_SOON_DAYS")
@@ -195,163 +155,34 @@ class CookieVaultService:
                 self.EXPIRING_SOON_DAYS,
             )
 
-    def _derive_key(self, password: str, salt: bytes) -> bytes:
-        """Derive encryption key using PBKDF2"""
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-            backend=self.backend
-        )
-        return kdf.derive(password.encode())
-
-    def _load_or_create_key_file(self, path_str: str) -> str:
-        """Load persistent encryption key from disk, creating it if missing."""
-
-        path = Path(path_str).expanduser().resolve()
-        if not path.parent.exists():
-            path.parent.mkdir(parents=True, exist_ok=True)
-
-        if path.exists():
-            key = path.read_text(encoding="utf-8").strip()
-            if not key:
-                raise RuntimeError(
-                    f"VAULT_ENCRYPTION_KEY_FILE at {path} is empty. Populate with a base64 32-byte key."
-                )
-            logger.info("Loaded cookie vault encryption key from %s", path)
-            return key
-
-        key_bytes = secrets.token_bytes(32)
-        key = base64.b64encode(key_bytes).decode()
-        path.write_text(key, encoding="utf-8")
-        try:
-            path.chmod(0o600)
-        except PermissionError:
-            logger.warning("Unable to set restrictive permissions on %s; ensure secrets are protected", path)
-        logger.info("Generated new cookie vault encryption key at %s", path)
-        return key
-
-    def _generate_encryption_context(self, tenant_id: str, user_id: str, item_type: VaultItemType) -> Dict[str, str]:
-        """Generate encryption context for AWS KMS"""
-        return {
-            "tenant_id": tenant_id,
-            "user_id": user_id,
-            "item_type": item_type.value,
-            "service": "vouchlink-ai-cookie-vault",
-            "environment": os.getenv("ENVIRONMENT", "development")
-        }
 
     def encrypt_data(self, data: Dict[str, Any], tenant_id: str, user_id: str, item_type: VaultItemType) -> EncryptionResult:
-        """Encrypt sensitive data using AES-256-GCM with optional AWS KMS"""
+        """Serialize data without encryption (plaintext storage)."""
         try:
-            # Serialize data to JSON
-            plaintext = json.dumps(data, default=str).encode()
-
-            # Generate random salt and nonce
-            salt = secrets.token_bytes(16)
-            nonce = secrets.token_bytes(12)
-
-            if self.kms_client and self.master_key_id:
-                # Use AWS KMS for key encryption
-                encryption_context = self._generate_encryption_context(tenant_id, user_id, item_type)
-
-                response = self.kms_client.generate_data_key(
-                    KeyId=self.master_key_id,
-                    KeySpec="AES_256",
-                    EncryptionContext=encryption_context,
-                )
-
-                key = response["Plaintext"]
-                encrypted_key = response["CiphertextBlob"]
-                key_id = base64.b64encode(encrypted_key).decode()
-            else:
-                # Use local encryption key derivation
-                key = self._derive_key(self.vault_encryption_key, salt)
-                key_id = base64.b64encode(salt).decode()
-
-            # Encrypt data with AES-256-GCM
-            cipher = Cipher(algorithms.AES(key), modes.GCM(nonce), backend=self.backend)
-            encryptor = cipher.encryptor()
-
-            # Add authenticated data (tenant_id for extra security)
-            authenticated_data = f"{tenant_id}:{user_id}:{item_type.value}".encode()
-            encryptor.authenticate_additional_data(authenticated_data)
-
-            ciphertext = encryptor.update(plaintext) + encryptor.finalize()
-
-            # Combine nonce, ciphertext, and tag
-            encrypted_blob = nonce + ciphertext + encryptor.tag
-            encrypted_data = base64.b64encode(encrypted_blob).decode()
-
-            logger.info(f"Encrypted {item_type.value} for tenant {tenant_id}, user {user_id}")
-            return EncryptionResult(encrypted_data, key_id)
-
+            payload = json.dumps(data, default=str)
+            return EncryptionResult(payload, "plaintext")
         except Exception as e:
-            logger.error(f"Encryption failed for {item_type.value}: {e}")
-            raise ValueError(f"Failed to encrypt sensitive data: {str(e)}")
+            logger.error(f"Failed to serialize {item_type.value}: %s", e)
+            raise ValueError(f"Failed to serialize sensitive data: {str(e)}")
 
     def decrypt_data(self, encrypted_data: str, key_id: str, tenant_id: str, user_id: str, item_type: VaultItemType) -> DecryptionResult:
-        """Decrypt sensitive data using AES-256-GCM"""
+        """Deserialize plaintext vault entries."""
         try:
-            # Decode base64 encrypted data
-            encrypted_blob = base64.b64decode(encrypted_data)
-
-            # Extract components
-            nonce = encrypted_blob[:12]
-            ciphertext_and_tag = encrypted_blob[12:]
-            ciphertext = ciphertext_and_tag[:-16]
-            tag = ciphertext_and_tag[-16:]
-
-            if self.kms_client and self.master_key_id:
-                # Decrypt key using AWS KMS
-                encryption_context = self._generate_encryption_context(tenant_id, user_id, item_type)
-                encrypted_key = base64.b64decode(key_id)
-
-                response = self.kms_client.decrypt(
-                    CiphertextBlob=encrypted_key,
-                    EncryptionContext=encryption_context,
-                )
-
-                key = response["Plaintext"]
-            else:
-                # Derive key from salt
-                salt = base64.b64decode(key_id)
-                key = self._derive_key(self.vault_encryption_key, salt)
-
-            # Decrypt data with AES-256-GCM
-            cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, tag), backend=self.backend)
-            decryptor = cipher.decryptor()
-
-            # Add authenticated data
-            authenticated_data = f"{tenant_id}:{user_id}:{item_type.value}".encode()
-            decryptor.authenticate_additional_data(authenticated_data)
-
-            plaintext = decryptor.update(ciphertext) + decryptor.finalize()
-
-            # Parse JSON data
-            data = json.loads(plaintext.decode())
-
-            logger.debug(f"Decrypted {item_type.value} for tenant {tenant_id}, user {user_id}")
+            data = json.loads(encrypted_data)
             return DecryptionResult(data)
-
-        except InvalidTag:
-            logger.error("Authentication failed - data may have been tampered with")
-            raise ValueError("Data authentication failed - possible tampering detected")
         except Exception as e:
-            logger.error(f"Decryption failed for {item_type.value}: {e}")
-            raise ValueError(f"Failed to decrypt sensitive data: {str(e)}")
+            logger.error(f"Failed to deserialize {item_type.value}: %s", e)
+            raise ValueError(f"Failed to deserialize sensitive data: {str(e)}")
 
     def get_health_status(self) -> Dict[str, Any]:
-        """Return configuration and readiness metadata for health dashboards."""
-
-        kms_enabled = bool(self.kms_client and self.master_key_id)
+        """Return configuration metadata for health dashboards."""
         return {
             "provider": "cookie_vault",
-            "kmsEnabled": kms_enabled,
+            "kmsEnabled": False,
             "keySource": self.key_source,
-            "keyConfigured": bool(self.vault_encryption_key),
-            "masterKeyId": self.master_key_id if kms_enabled else None,
+            "keyConfigured": False,
+            "masterKeyId": None,
+            "encryptionMode": "plaintext",
         }
 
     async def store_vault_item(
@@ -1195,21 +1026,23 @@ class CookieVaultService:
         try:
             health_status = {
                 "status": "healthy",
-                "encryption": "AES-256-GCM",
-                "kms_enabled": self.kms_client is not None,
-                "master_key_configured": bool(self.master_key_id),
+                "encryption": "plaintext",
+                "kms_enabled": False,
+                "master_key_configured": False,
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
-            # Test encryption/decryption
+            # Basic serialization round-trip check to ensure DB writes will work.
             test_data = {"test": "data", "timestamp": datetime.now(timezone.utc).isoformat()}
-            encrypted, key_id = await self.encrypt_data(test_data, "test_tenant", "test_user", VaultItemType.API_TOKEN)
-            decrypted = await self.decrypt_data(encrypted, key_id, "test_tenant", "test_user", VaultItemType.API_TOKEN)
+            serialized, key_id = await self.encrypt_data(test_data, "test_tenant", "test_user", VaultItemType.API_TOKEN)
+            if key_id != "plaintext":
+                raise ValueError("Unexpected key identifier in plaintext mode")
+            deserialized = await self.decrypt_data(serialized, key_id, "test_tenant", "test_user", VaultItemType.API_TOKEN)
 
-            if decrypted["test"] == "data":
-                health_status["encryption_test"] = "passed"
+            if deserialized.get("test") == "data":
+                health_status["serialization_test"] = "passed"
             else:
-                health_status["encryption_test"] = "failed"
+                health_status["serialization_test"] = "failed"
                 health_status["status"] = "degraded"
 
             return health_status

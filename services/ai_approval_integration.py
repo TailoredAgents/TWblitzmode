@@ -9,6 +9,7 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Dict, List, Optional, Any
+import os
 from enum import Enum
 from .workflow_persistence_service import WorkflowPersistenceService
 from .resilience_patterns import ResilienceManager, BulkheadType
@@ -667,5 +668,5 @@ class AIApprovalIntegrationService:
 
 # Global instance
 ai_approval_integration = AIApprovalIntegrationService(
-    database_url="postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI"
+    database_url=os.getenv("DATABASE_URL")
 )

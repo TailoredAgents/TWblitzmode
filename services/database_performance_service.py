@@ -64,7 +64,7 @@ class DatabasePerformanceService:
     """
 
     def __init__(self, database_url: Optional[str] = None):
-        self.database_url = database_url or os.getenv("DATABASE_URL", "postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI")
+        self.database_url = database_url or os.getenv("DATABASE_URL")
         self.pool = None
 
         # Performance thresholds
@@ -76,6 +76,8 @@ class DatabasePerformanceService:
     async def initialize(self):
         """Initialize database connection pool"""
         try:
+            if not self.database_url:
+                raise RuntimeError("DATABASE_URL is not configured for DatabasePerformanceService")
             self.pool = await asyncpg.create_pool(
                 self.database_url,
                 min_size=2,

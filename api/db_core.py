@@ -121,6 +121,14 @@ def get_conn(*, tenant_id: Optional[Any] = None) -> Iterator[ConnectionLike]:
             if resolved_tenant is not None:
                 # Store tenant_id directly on connection object (conn.info is read-only)
                 conn.tenant_id = str(resolved_tenant)  # type: ignore[attr-defined]
+                # Set GUCs for RLS policies used by corporate schema and legacy policies
+                try:
+                    with conn.cursor() as _gcur:
+                        _gcur.execute("SELECT set_config('app.current_organization_id', %s, true)", (str(resolved_tenant),))
+                        _gcur.execute("SELECT set_config('app.current_tenant_id', %s, true)", (str(resolved_tenant),))
+                except Exception:
+                    # Do not fail connection acquisition if GUC setting fails
+                    logger.debug("Failed to set tenant GUCs on connection", exc_info=True)
             yield conn
             conn.commit()
         except Exception:

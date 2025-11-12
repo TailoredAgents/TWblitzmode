@@ -167,35 +167,6 @@ class EnvironmentValidationService:
                 validation_function=self._validate_openai
             ),
 
-            # Security Services
-            "aws_kms": ServiceConfig(
-                name="AWS KMS",
-                description="Key management for encryption",
-                required_env_vars=[],
-                optional_env_vars=["AWS_KMS_KEY_ID", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
-                priority=ServicePriority.MEDIUM,
-                validation_function=self._validate_aws_kms
-            ),
-
-            "vault_encryption": ServiceConfig(
-                name="Cookie Vault Encryption",
-                description="Local encryption for sensitive data",
-                required_env_vars=["VAULT_ENCRYPTION_KEY"],
-                optional_env_vars=["COOKIE_VAULT_SECRET"],
-                priority=ServicePriority.HIGH,
-                validation_function=self._validate_vault_encryption
-            ),
-
-            # Application Configuration
-            "jwt_auth": ServiceConfig(
-                name="JWT Authentication",
-                description="User authentication and authorization",
-                required_env_vars=["JWT_SECRET_KEY"],
-                optional_env_vars=["JWT_EXPIRE_HOURS", "JWT_ALGORITHM"],
-                priority=ServicePriority.CRITICAL,
-                validation_function=self._validate_jwt_auth
-            ),
-
             "cors_origins": ServiceConfig(
                 name="CORS Configuration",
                 description="Cross-origin resource sharing settings",
@@ -498,60 +469,6 @@ class EnvironmentValidationService:
 
         except Exception as e:
             return {"success": False, "error": f"PhantomBuster validation failed: {str(e)}"}
-
-    async def _validate_aws_kms(self) -> Dict[str, Any]:
-        """Validate AWS KMS configuration"""
-        try:
-            key_id = os.getenv("AWS_KMS_KEY_ID")
-            access_key = os.getenv("AWS_ACCESS_KEY_ID")
-            secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-
-            if not any([key_id, access_key, secret_key]):
-                return {"success": True, "note": "AWS KMS not configured - using local encryption"}
-
-            if key_id and access_key and secret_key:
-                return {"success": True, "kms_configured": True}
-            else:
-                return {"success": False, "error": "Partial AWS KMS configuration - all variables required"}
-
-        except Exception as e:
-            return {"success": False, "error": f"AWS KMS validation failed: {str(e)}"}
-
-    async def _validate_vault_encryption(self) -> Dict[str, Any]:
-        """Validate vault encryption configuration"""
-        try:
-            encryption_key = os.getenv("VAULT_ENCRYPTION_KEY")
-            if not encryption_key:
-                return {"success": False, "error": "VAULT_ENCRYPTION_KEY not configured"}
-
-            # Validate key format (should be base64)
-            import base64
-            try:
-                decoded = base64.b64decode(encryption_key)
-                if len(decoded) < 32:
-                    return {"success": False, "error": "Encryption key too short (minimum 32 bytes)"}
-            except Exception:
-                return {"success": False, "error": "Invalid encryption key format (should be base64)"}
-
-            return {"success": True, "key_validated": True, "key_length": len(decoded)}
-
-        except Exception as e:
-            return {"success": False, "error": f"Vault encryption validation failed: {str(e)}"}
-
-    async def _validate_jwt_auth(self) -> Dict[str, Any]:
-        """Validate JWT authentication configuration"""
-        try:
-            secret_key = os.getenv("JWT_SECRET_KEY")
-            if not secret_key:
-                return {"success": False, "error": "JWT_SECRET_KEY not configured"}
-
-            if len(secret_key) < 32:
-                return {"success": False, "error": "JWT secret key too short (minimum 32 characters)"}
-
-            return {"success": True, "key_validated": True}
-
-        except Exception as e:
-            return {"success": False, "error": f"JWT validation failed: {str(e)}"}
 
     async def _validate_cors(self) -> Dict[str, Any]:
         """Validate CORS configuration"""

@@ -5,6 +5,7 @@ Critical security enhancement to prevent cross-tenant data leaks
 """
 
 import logging
+import os
 import re
 from typing import Dict, List, Any, Optional, Sequence, Tuple
 from dataclasses import dataclass
@@ -499,5 +500,5 @@ class TenantIsolationService:
 
 # Global instance
 tenant_isolation = TenantIsolationService(
-    "postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI"
+    os.getenv("DATABASE_URL")
 )

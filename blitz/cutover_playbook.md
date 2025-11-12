@@ -32,7 +32,7 @@ Execution Steps
    - `git push -u origin main`
 
 3) Render setup (LE)
-   - From `blitz/render_blueprint.yaml`, create services; set env vars (OPENAI_API_KEY, PRIMARY_MODEL=gpt-4.1, APIFY_TOKEN, CUFINDER_API_KEY, SENDGRID_API_KEY, SENDGRID_VERIFIED_SENDER, DATABASE_URL via managed DB connection, ENC_KEY, SECRET_KEY).
+   - From `blitz/render_blueprint.yaml`, create services; set env vars (OPENAI_API_KEY, PRIMARY_MODEL=gpt-4.1, APIFY_TOKEN, CUFINDER_API_KEY, SENDGRID_API_KEY, SENDGRID_VERIFIED_SENDER, DATABASE_URL via managed DB connection).
    - Deploy API and Frontend; confirm health endpoints.
    - Run health and preflight:
      - `GET /api/health` must show `status=healthy` or `degraded` (with details) before E2E.

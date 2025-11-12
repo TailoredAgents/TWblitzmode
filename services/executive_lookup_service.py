@@ -698,10 +698,28 @@ class ExecutiveLookupService:
         return f"executive_lookup:{cache_hash}"
 
     # Database operations
+    async def _acquire_conn(self, tenant_id: str):
+        class _ConnCtx:
+            def __init__(self, dsn: str, tenant: str):
+                self.dsn = dsn
+                self.tenant = tenant
+                self.conn: Optional[asyncpg.Connection] = None
+            async def __aenter__(self):
+                self.conn = await asyncpg.connect(self.dsn)
+                try:
+                    await self.conn.execute("SELECT set_config('app.current_tenant_id', $1, true)", self.tenant)
+                    await self.conn.execute("SELECT set_config('app.current_organization_id', $1, true)", self.tenant)
+                except Exception:
+                    pass
+                return self.conn
+            async def __aexit__(self, exc_type, exc, tb):
+                if self.conn:
+                    await self.conn.close()
+        return _ConnCtx(self.database_url, str(tenant_id))
     async def _get_prospect_data(self, tenant_id: str, prospect_id: str) -> Optional[Dict]:
         """Get prospect data from database"""
 
-        async with asyncpg.connect(self.database_url) as conn:
+        async with await self._acquire_conn(tenant_id) as conn:
             row = await conn.fetchrow("""
                 SELECT id, company, full_name, first_name, last_name, title, email
                 FROM prospects
@@ -713,7 +731,7 @@ class ExecutiveLookupService:
     async def _update_prospect_data(self, tenant_id: str, prospect_id: str, executive_data: ExecutiveData):
         """Update prospect with enriched executive data"""
 
-        async with asyncpg.connect(self.database_url) as conn:
+        async with await self._acquire_conn(tenant_id) as conn:
             await conn.execute("""
                 UPDATE prospects SET
                     first_name = $3,
@@ -733,7 +751,7 @@ class ExecutiveLookupService:
     async def _store_lookup_job(self, lookup_job: LookupJob):
         """Store lookup job in database"""
 
-        async with asyncpg.connect(self.database_url) as conn:
+        async with await self._acquire_conn(lookup_job.tenant_id) as conn:
             await conn.execute("""
                 INSERT INTO executive_lookup_jobs (
                     job_id, tenant_id, prospect_ids, status, total_prospects,
@@ -750,7 +768,7 @@ class ExecutiveLookupService:
     async def _update_lookup_job(self, lookup_job: LookupJob):
         """Update lookup job in database"""
 
-        async with asyncpg.connect(self.database_url) as conn:
+        async with await self._acquire_conn(lookup_job.tenant_id) as conn:
             await conn.execute("""
                 UPDATE executive_lookup_jobs SET
                     status = $2,
@@ -770,7 +788,7 @@ class ExecutiveLookupService:
     async def get_job_status(self, job_id: str, tenant_id: str) -> Optional[Dict]:
         """Get lookup job status"""
 
-        async with asyncpg.connect(self.database_url) as conn:
+        async with await self._acquire_conn(tenant_id) as conn:
             row = await conn.fetchrow("""
                 SELECT * FROM executive_lookup_jobs
                 WHERE job_id = $1 AND tenant_id = $2

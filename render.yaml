@@ -41,11 +41,7 @@ services:
         sync: false
       - key: SENDGRID_VERIFIED_SENDER
         sync: false
-      - key: ENC_KEY
-        sync: false
-      - key: SECRET_KEY
-        sync: false
-    dockerCommand: uvicorn api.main:app --host 0.0.0.0 --port 8888
+    dockerCommand: bash scripts/entrypoint.sh uvicorn api.main:app --host 0.0.0.0 --port 8888
 
   - type: web
     name: blitz-link-frontend
@@ -94,9 +90,4 @@ services:
         sync: false
       - key: SENDGRID_VERIFIED_SENDER
         sync: false
-      - key: ENC_KEY
-        sync: false
-      - key: SECRET_KEY
-        sync: false
-    dockerCommand: python3 -m services.queue_worker
-
+    dockerCommand: bash scripts/entrypoint.sh python3 -m services.queue_worker

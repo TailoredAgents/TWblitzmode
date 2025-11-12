@@ -17,7 +17,7 @@ Quick Start (Local)
 
 - Prereqs: Python 3.11+, Node 18+, Postgres 15+, (optional) Docker.
 - Env (copy from `/blitz/secrets_template.env`):
-  - `PRIMARY_MODEL=gpt-4.1`, `OPENAI_API_KEY`, `APIFY_TOKEN`, `CUFINDER_API_KEY`, `SENDGRID_API_KEY`, `SENDGRID_VERIFIED_SENDER`, `DATABASE_URL`, `ENC_KEY`, `SECRET_KEY`.
+  - `PRIMARY_MODEL=gpt-4.1`, `OPENAI_API_KEY`, `APIFY_TOKEN`, `CUFINDER_API_KEY`, `SENDGRID_API_KEY`, `SENDGRID_VERIFIED_SENDER`, `DATABASE_URL`.
   - Frontend: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_MASTER_LOGIN_PASSWORD=Tallwave`.
 - Install:
   - `pip install -r requirements.txt` (or `make bootstrap`)
@@ -70,4 +70,3 @@ Docs
 License / Attribution
 
 - Fill per organization policies.
-

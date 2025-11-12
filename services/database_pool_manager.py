@@ -11,6 +11,7 @@ Addresses Critical Issues:
 """
 
 import asyncio
+import os
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -20,6 +21,11 @@ from typing import Dict, Optional, Any, List, Callable
 from enum import Enum
 import asyncpg
 import asyncpg.pool
+try:
+    from api.tenant_context import get_tenant  # type: ignore
+except Exception:  # pragma: no cover
+    def get_tenant():
+        return None
 
 logger = logging.getLogger(__name__)
 
@@ -236,6 +242,15 @@ class EnterpriseConnectionPool:
             # Acquire connection from pool
             timeout = timeout or self.config.command_timeout
             connection = await asyncio.wait_for(self.pool.acquire(), timeout=timeout)
+
+            # Set tenant GUCs if context present
+            try:
+                tenant = get_tenant()
+                if tenant:
+                    await connection.execute("SELECT set_config('app.current_tenant_id', $1, true)", tenant)
+                    await connection.execute("SELECT set_config('app.current_organization_id', $1, true)", tenant)
+            except Exception:
+                logger.debug("Failed to set tenant GUCs on pooled connection", exc_info=True)
 
             # Update metrics
             self.metrics.used_connections += 1
@@ -528,9 +543,10 @@ async def create_standard_pools():
     """Create standard connection pools for the application"""
 
     # Main database pool
+    import os
     main_pool_config = PoolConfig(
         name="main",
-        database_url="postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI",
+        database_url=os.getenv("DATABASE_URL"),
         min_size=10,
         max_size=50,
         command_timeout=30.0,
@@ -540,7 +556,7 @@ async def create_standard_pools():
     # Analytics read-replica pool (using same DB for now)
     analytics_pool_config = PoolConfig(
         name="analytics",
-        database_url="postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI",
+        database_url=os.getenv("DATABASE_URL"),
         min_size=5,
         max_size=20,
         command_timeout=60.0,

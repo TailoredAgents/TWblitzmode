@@ -23,8 +23,6 @@ services:
       CUFINDER_API_KEY: ${CUFINDER_API_KEY}
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}
       SENDGRID_VERIFIED_SENDER: ${SENDGRID_VERIFIED_SENDER}
-      ENC_KEY: ${ENC_KEY}
-      SECRET_KEY: ${SECRET_KEY}
     ports:
       - "8888:8888"
     command: uvicorn api.main:app --host 0.0.0.0 --port 8888
@@ -51,8 +49,6 @@ services:
       CUFINDER_API_KEY: ${CUFINDER_API_KEY}
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}
       SENDGRID_VERIFIED_SENDER: ${SENDGRID_VERIFIED_SENDER}
-      ENC_KEY: ${ENC_KEY}
-      SECRET_KEY: ${SECRET_KEY}
     command: python -m services.queue_worker
 
   frontend:

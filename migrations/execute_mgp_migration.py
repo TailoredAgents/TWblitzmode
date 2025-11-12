@@ -20,12 +20,12 @@ from migrations.migration_safety import migration_safety, MGP_MIGRATION_PROCEDUR
 import importlib.util
 import sys
 
-# Import the migration module dynamically since it starts with a number
-spec = importlib.util.spec_from_file_location(
-    "mgp_migration",
-    "/Users/jeffreyhacker/introduceme /Introduce.me/migrations/versions/003_master_game_plan_tables.py"
-)
+# Import the migration module dynamically from local migrations/versions
+VERSIONS_DIR = os.path.join(os.path.dirname(__file__), 'versions')
+MGP_PATH = os.path.join(VERSIONS_DIR, '003_master_game_plan_tables.py')
+spec = importlib.util.spec_from_file_location("mgp_migration", MGP_PATH)
 mgp_migration_module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
 spec.loader.exec_module(mgp_migration_module)
 mgp_upgrade = mgp_migration_module.upgrade
 mgp_downgrade = mgp_migration_module.downgrade
@@ -456,54 +456,10 @@ class MGPMigrationExecutor:
 
             logger.info("🚀 Executing Master Game Plan migration...")
 
-            # Use Alembic to run the migration
-            # Create temporary alembic.ini if it doesn't exist
-            alembic_ini_path = "/Users/jeffreyhacker/introduceme /Introduce.me/alembic.ini"
-            if not os.path.exists(alembic_ini_path):
-                # Create a basic alembic.ini
-                with open(alembic_ini_path, 'w') as f:
-                    f.write("""[alembic]
-script_location = migrations
-sqlalchemy.url = postgresql://vouchlink_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/vouchlink
-
-[loggers]
-keys = root,sqlalchemy,alembic
-
-[handlers]
-keys = console
-
-[formatters]
-keys = generic
-
-[logger_root]
-level = WARN
-handlers = console
-qualname =
-
-[logger_sqlalchemy]
-level = WARN
-handlers =
-qualname = sqlalchemy.engine
-
-[logger_alembic]
-level = INFO
-handlers =
-qualname = alembic
-
-[handler_console]
-class = StreamHandler
-args = (sys.stderr,)
-level = NOTSET
-formatter = generic
-
-[formatter_generic]
-format = %(levelname)-5.5s [%(name)s] %(message)s
-datefmt = %H:%M:%S
-""")
-
-            # Configure Alembic
-            alembic_cfg = Config(alembic_ini_path)
-            alembic_cfg.set_main_option("script_location", "/Users/jeffreyhacker/introduceme /Introduce.me/migrations")
+            # Use repository Alembic config; URL resolved from env in migrations/env.py
+            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+            alembic_cfg = Config(os.path.join(repo_root, 'alembic.ini'))
+            alembic_cfg.set_main_option("script_location", os.path.join(repo_root, 'migrations'))
 
             # Run migration to specific revision
             command.upgrade(alembic_cfg, self.migration_id)

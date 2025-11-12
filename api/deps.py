@@ -15,6 +15,7 @@ from .auth import decode_token
 from .tenant_repository import TenantRepository
 from .tenant_context import set_tenant
 from api.middleware.request_context import set_authenticated_context
+from api.tenant_context import get_tenant
 
 try:  # FastAPI layer running within src-aware path
     from src.services.database import db as sqlite_db
@@ -317,6 +318,15 @@ async def get_connection(database_url: Optional[str] = None) -> AsyncIterator[as
             detail="PostgreSQL database is unavailable. Configure DATABASE_URL or start the database service.",
         ) from exc
     try:
+        # Set RLS GUCs if a tenant context is active
+        try:
+            tenant = get_tenant()
+            if tenant:
+                await conn.execute("SELECT set_config('app.current_tenant_id', $1, true)", tenant)
+                await conn.execute("SELECT set_config('app.current_organization_id', $1, true)", tenant)
+        except Exception:
+            logger.debug("Failed to set tenant GUCs on asyncpg connection", exc_info=True)
+
         yield conn
     finally:
         await conn.close()

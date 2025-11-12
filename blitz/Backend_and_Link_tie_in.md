@@ -90,12 +90,12 @@ Env Vars (Backend)
 - OPENAI_API_KEY, PRIMARY_MODEL=gpt-4.1
 - APIFY_TOKEN, PHANTOMBUSTER_API_KEY (secondary only), CUFINDER_API_KEY
 - SENDGRID_API_KEY, SENDGRID_VERIFIED_SENDER, SENDGRID_WEBHOOK_VERIFICATION_KEY
-- DATABASE_URL, ENC_KEY, SECRET_KEY (app key), APP_BASE_URL, APIFY/SENDGRID/PHANTOM webhook secrets
+- DATABASE_URL, APP_BASE_URL, APIFY/SENDGRID/PHANTOM webhook secrets
 
 Extraction Notes
 
 - Replace `from api.deps import get_current_user/get_current_admin` → `from api.deps_identity_stub import ...` across Link routes.
-- Exclude `api/auth.py`, `api/security.py`, `jwt_secret_manager.py`, refresh/registration/keys modules.
+- Exclude `api/auth.py`, `api/security.py`, refresh/registration/keys modules.
 - Keep `api/database.py`, `api/db_core.py`, `api/startup_sanity.py`, `api/startup_checks.py` (pruned for model/policy checks only).
 
 OpenAPI (Key Endpoints – Draft)
@@ -184,7 +184,7 @@ Render Deployment (No Mocks)
   - Build command: `docker build -t link-api .`
   - Start command: `uvicorn api.main:app --host 0.0.0.0 --port 8888` (or gunicorn/uvicorn workers)
   - Health check: `GET /api/health` (add if missing; current `api/main.py` exposes a root health JSON)
-  - Env vars: set OPENAI_API_KEY, PRIMARY_MODEL=gpt-4.1, APIFY_TOKEN, CUFINDER_API_KEY, SENDGRID_API_KEY, SENDGRID_VERIFIED_SENDER, DATABASE_URL, ENC_KEY, SECRET_KEY; optional PHANTOMBUSTER_API_KEY.
+  - Env vars: set OPENAI_API_KEY, PRIMARY_MODEL=gpt-4.1, APIFY_TOKEN, CUFINDER_API_KEY, SENDGRID_API_KEY, SENDGRID_VERIFIED_SENDER, DATABASE_URL; optional PHANTOMBUSTER_API_KEY.
   - Networking: expose port 8888.
 
 - Frontend (Static or Web Service):

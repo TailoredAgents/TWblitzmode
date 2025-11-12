@@ -916,7 +916,6 @@ class WorkflowPersistenceService:
 _DEFAULT_WORKFLOW_DB = (
     os.getenv("WORKFLOW_DATABASE_URL")
     or os.getenv("DATABASE_URL")
-    or "postgresql://vouchlink_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/vouchlink"
 )
 _DEFAULT_WORKFLOW_REDIS = os.getenv("WORKFLOW_REDIS_URL") or os.getenv("REDIS_URL", "redis://localhost:6379/0")
 

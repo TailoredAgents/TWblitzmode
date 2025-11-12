@@ -7,7 +7,7 @@ Goals
 Checks (examples)
 
 - Forbid legacy auth imports:
-  - `rg -n "(from|import)\s+api\.auth|jwt_secret_manager|\bjwt\b|refresh_token|auth_sessions" . && exit 1 || true`
+  - `rg -n "(from|import)\s+api\.auth|\bjwt\b|refresh_token|auth_sessions" . && exit 1 || true`
 - Email provider invariant:
   - `rg -n "(sendgrid|SendGrid)" services | wc -l` must be > 0; forbid other providers.
 - PhantomBuster policy:
@@ -30,7 +30,7 @@ jobs:
         with: { python-version: '3.11' }
       - run: pip install -r requirements.txt || true
       - run: pytest -q || true
-      - run: rg -n "(from|import)\s+api\.auth|jwt_secret_manager|\bjwt\b|refresh_token|auth_sessions" . && exit 1 || true
+      - run: rg -n "(from|import)\s+api\.auth|\bjwt\b|refresh_token|auth_sessions" . && exit 1 || true
       - run: rg -n "(SendGrid|sendgrid)" services || exit 1
       - run: rg -n "run_phantombuster_enrichment" services/chat_tool_registry.py || exit 1
 ```

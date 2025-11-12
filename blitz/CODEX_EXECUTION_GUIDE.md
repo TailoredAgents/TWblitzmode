@@ -19,7 +19,7 @@ Hard Rules
 Prerequisites
 
 - Linux/macOS shell with git, Python 3.11, Node 18+, Docker (optional), ripgrep.
-- Provider secrets available (not in Git): OPENAI_API_KEY, APIFY_TOKEN, CUFINDER_API_KEY, SENDGRID_API_KEY, SENDGRID_VERIFIED_SENDER, ENC_KEY, SECRET_KEY.
+- Provider secrets available (not in Git): OPENAI_API_KEY, APIFY_TOKEN, CUFINDER_API_KEY, SENDGRID_API_KEY, SENDGRID_VERIFIED_SENDER.
 
 Plan Overview (what Codex will do)
 
@@ -136,4 +136,3 @@ Success Criteria
 Rollback
 
 - Revert to previous Render deploy; disable Blitz services if anomaly rate spikes; restore DB snapshot if any data changes were introduced.
-

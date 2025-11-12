@@ -568,10 +568,10 @@ class WorkflowStateMachine:
                 {"error": str(e)}
             )
 
-    async def approve_workflow(self, approval_id: str, approver_id: int, reason: Optional[str] = None) -> bool:
+    async def approve_workflow(self, approval_id: str, approver_id: int, reason: Optional[str] = None, organization_id: Optional[int] = None) -> bool:
         """Approve a workflow - September 2025 human-in-the-loop feature"""
         try:
-            approval = await self._get_approval_request(approval_id)
+            approval = await self._get_approval_request(approval_id, organization_id=organization_id)
             if not approval:
                 return False
 
@@ -599,10 +599,10 @@ class WorkflowStateMachine:
             logger.error(f"Approval failed: {e}")
             return False
 
-    async def reject_workflow(self, approval_id: str, approver_id: int, reason: str) -> bool:
+    async def reject_workflow(self, approval_id: str, approver_id: int, reason: str, organization_id: Optional[int] = None) -> bool:
         """Reject a workflow - September 2025 human-in-the-loop feature"""
         try:
-            approval = await self._get_approval_request(approval_id)
+            approval = await self._get_approval_request(approval_id, organization_id=organization_id)
             if not approval:
                 return False
 
@@ -749,7 +749,8 @@ class WorkflowStateMachine:
             return
 
         try:
-            async with self.db_pool.acquire() as conn:
+            from services.asyncpg_rls import acquire_pool_conn
+            async with acquire_pool_conn(self.db_pool, approval.organization_id) as conn:
                 await conn.execute("""
                     INSERT INTO approval_requests (
                         id, workflow_id, organization_id, request_type, description,
@@ -763,16 +764,23 @@ class WorkflowStateMachine:
         except Exception as e:
             logger.error(f"Failed to store approval request: {e}")
 
-    async def _get_approval_request(self, approval_id: str) -> Optional[ApprovalRequest]:
+    async def _get_approval_request(self, approval_id: str, organization_id: Optional[int] = None) -> Optional[ApprovalRequest]:
         """Get approval request from database"""
         if not self.db_pool:
             return None
 
         try:
-            async with self.db_pool.acquire() as conn:
-                row = await conn.fetchrow("""
-                    SELECT * FROM approval_requests WHERE id = $1
-                """, approval_id)
+            from services.asyncpg_rls import acquire_pool_conn
+            if organization_id is not None:
+                async with acquire_pool_conn(self.db_pool, organization_id) as conn:
+                    row = await conn.fetchrow("""
+                        SELECT * FROM approval_requests WHERE id = $1
+                    """, approval_id)
+            else:
+                async with self.db_pool.acquire() as conn:
+                    row = await conn.fetchrow("""
+                        SELECT * FROM approval_requests WHERE id = $1
+                    """, approval_id)
 
                 if row:
                     return ApprovalRequest(
@@ -804,7 +812,8 @@ class WorkflowStateMachine:
             return
 
         try:
-            async with self.db_pool.acquire() as conn:
+            from services.asyncpg_rls import acquire_pool_conn
+            async with acquire_pool_conn(self.db_pool, approval.organization_id) as conn:
                 await conn.execute("""
                     UPDATE approval_requests SET
                         status = $1, approver_id = $2, approved_at = $3, rejection_reason = $4
@@ -827,7 +836,8 @@ class WorkflowStateMachine:
             await self.db_pool.close()
         self.redis_client.close()
 
+import os
 # Global instance
 workflow_state_machine = WorkflowStateMachine(
-    database_url="postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI"
+    database_url=os.getenv("WORKFLOW_DATABASE_URL") or os.getenv("DATABASE_URL")
 )

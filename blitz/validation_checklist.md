@@ -2,7 +2,7 @@
 
 Preflight
 
-- Env set in Render: OPENAI_API_KEY, PRIMARY_MODEL=gpt-4.1, APIFY_TOKEN, CUFINDER_API_KEY, SENDGRID_API_KEY, SENDGRID_VERIFIED_SENDER, DATABASE_URL, ENC_KEY, SECRET_KEY.
+- Env set in Render: OPENAI_API_KEY, PRIMARY_MODEL=gpt-4.1, APIFY_TOKEN, CUFINDER_API_KEY, SENDGRID_API_KEY, SENDGRID_VERIFIED_SENDER, DATABASE_URL.
 - Frontend env: NEXT_PUBLIC_API_URL, NEXT_PUBLIC_SITE_URL, NEXT_PUBLIC_MASTER_LOGIN_PASSWORD=Tallwave.
 - Run `python blitz/scripts/startup_check.py` and confirm PRIMARY_MODEL and DB connected.
 - Run provider preflight: `python blitz/scripts/provider_preflight.py` (or call `POST /api/preflight/providers`) and confirm Apify/CUF/SENDGRID green.

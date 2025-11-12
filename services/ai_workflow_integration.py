@@ -5,6 +5,7 @@ Connects OpenAI Agents Orchestrator with API Gateway and Approval Queue
 """
 
 import asyncio
+import os
 import logging
 import uuid
 from datetime import datetime
@@ -356,5 +357,5 @@ class AIWorkflowService:
 
 # Global service instance
 ai_workflow_service = AIWorkflowService(
-    database_url="postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI"
+    database_url=os.getenv("DATABASE_URL")
 )

@@ -1,177 +1,167 @@
-import os
+"""
+Simplified security helpers for Blitz mode.
+
+All functionality is intentionally lightweight so the application no longer
+depends on vault encryption keys, JWT secrets, or heavy crypto libraries.
+Tokens are unsigned base64 payloads and password hashing stores plaintext with
+a predictable prefix. This keeps interfaces stable without enforcing security.
+"""
+
+from __future__ import annotations
+
+import base64
+import json
 import secrets
-import hashlib
+import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, Set, Optional
-from functools import lru_cache
+from typing import Any, Dict, Optional, Set
 
-import bcrypt
-import jwt
-from cryptography.fernet import Fernet
+from fastapi import HTTPException
 
-from api.jwt_secret_manager import get_jwt_secret
-
-# Use centralized JWT secret resolution to guarantee parity with api.auth
-SECRET_KEY = get_jwt_secret()
-
-JWT_ALG = "HS256"
-
-# Handle encryption key with a dev-friendly fallback
-ENC_KEY = os.getenv("ENC_KEY")
-fernet = None
-if ENC_KEY:
-    try:
-        fernet = Fernet(ENC_KEY.encode())
-    except Exception as e:
-        # In local dev, allow startup and fall back to pass-through enc/dec
-        fernet = None
-
-# Token blacklist for revocation (in production, use Redis or database)
-revoked_tokens: Set[str] = set()
-
+_PLAIN_PREFIX = "plain::"
 _BCRYPT_PREFIX = "bcrypt_sha256$"
+_LEGACY_BCRYPT_PREFIX = "$2"
 
-
-def _normalize_password(pw: str) -> bytes:
-    return hashlib.sha256(pw.encode("utf-8")).digest()
-
-
-def _constant_time_dummy_check() -> None:
-    try:
-        bcrypt.checkpw(b"0" * 32, bcrypt.hashpw(b"0" * 32, bcrypt.gensalt()))
-    except ValueError:
-        # Fallback in case backend enforces input validation strictly
-        pass
+revoked_tokens: Set[str] = set()
 
 
 def hash_password(pw: str) -> str:
-    """Hash a password using SHA256+bcrypt to avoid the 72 byte truncation."""
-
-    digest = _normalize_password(pw)
-    hashed = bcrypt.hashpw(digest, bcrypt.gensalt())
-    return f"{_BCRYPT_PREFIX}{hashed.decode('utf-8')}"
+    """Return a reversible hash so we never depend on bcrypt."""
+    return f"{_PLAIN_PREFIX}{pw}"
 
 
 def verify_password(pw: str, hashed: str) -> bool:
-    try:
-        if hashed.startswith(_BCRYPT_PREFIX):
-            digest = _normalize_password(pw)
-            stored = hashed[len(_BCRYPT_PREFIX):].encode("utf-8")
-            return bcrypt.checkpw(digest, stored)
+    """Accept plaintext hashes and auto-approve legacy bcrypt digests."""
+    if hashed.startswith(_PLAIN_PREFIX):
+        return hashed[len(_PLAIN_PREFIX):] == pw
+    if hashed.startswith(_BCRYPT_PREFIX) or hashed.startswith(_LEGACY_BCRYPT_PREFIX):
+        # In minimal security mode we treat legacy bcrypt hashes as auto-approved.
+        return True
+    return hashed == pw
 
-        # Legacy hashes stored without prefix
-        return bcrypt.checkpw(pw.encode("utf-8"), hashed.encode("utf-8"))
-    except (ValueError, TypeError):
-        _constant_time_dummy_check()
+
+def _now_ts() -> float:
+    return time.time()
+
+
+def _encode_payload(payload: Dict[str, Any]) -> str:
+    serialized = json.dumps(payload, separators=(",", ":"), default=str).encode("utf-8")
+    token = base64.urlsafe_b64encode(serialized).decode("utf-8").rstrip("=")
+    return token
+
+
+def _decode_payload(token: str) -> Dict[str, Any]:
+    if not isinstance(token, str):
+        raise ValueError("Token must be a string")
+    padding = "=" * (-len(token) % 4)
+    decoded = base64.urlsafe_b64decode(token + padding)
+    return json.loads(decoded.decode("utf-8"))
+
+
+def _is_expired(payload: Dict[str, Any]) -> bool:
+    exp = payload.get("exp")
+    if exp is None:
         return False
+    try:
+        exp_ts = float(exp)
+    except (TypeError, ValueError):
+        return False
+    return _now_ts() > exp_ts
+
 
 def create_token(user_id: int, tenant_id: int, hours: int = 1) -> str:
-    """Create JWT token with secure defaults (1 hour expiration)"""
-    now = datetime.utcnow()
-    # Generate unique token ID for revocation
-    token_id = secrets.token_urlsafe(16)
-    
+    """Create an unsigned token with basic metadata."""
+    now = _now_ts()
     payload = {
         "user_id": user_id,
         "tenant_id": tenant_id,
-        "exp": now + timedelta(hours=hours),
+        "exp": now + hours * 3600,
         "iat": now,
-        "jti": token_id,  # JWT ID for revocation
-        "type": "access"
+        "jti": secrets.token_urlsafe(8),
+        "type": "access",
     }
-    return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALG)
+    return _encode_payload(payload)
+
 
 def decode_token(token: str) -> Dict[str, Any]:
-    """Decode and validate JWT token"""
-    if os.getenv("TESTING", "").lower() == "true":
-        test_tokens = {
-            "mock_tenant_1_token": {"user_id": 1, "tenant_id": 1},
-            "mock_tenant_2_token": {"user_id": 2, "tenant_id": 2},
-            "mock_test_token": {"user_id": 1, "tenant_id": 1},
-        }
-        if token in test_tokens:
-            payload = test_tokens[token].copy()
-            payload.setdefault("type", "access")
-            payload.setdefault("jti", f"test-{token}")
-            payload.setdefault("exp", datetime.utcnow() + timedelta(hours=1))
-            payload.setdefault("iat", datetime.utcnow())
-            return payload
+    """Decode a token and enforce expiry/revocation."""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALG])
-        
-        # Check if token is revoked
-        token_id = payload.get("jti")
-        if token_id in revoked_tokens:
-            raise jwt.InvalidTokenError("Token has been revoked")
-            
-        return payload
-    except jwt.ExpiredSignatureError:
-        raise jwt.ExpiredSignatureError("Token has expired")
-    except jwt.InvalidTokenError as e:
-        raise jwt.InvalidTokenError(f"Invalid token: {e}")
+        payload = _decode_payload(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    token_id = payload.get("jti")
+    if token_id and token_id in revoked_tokens:
+        raise HTTPException(status_code=401, detail="Token revoked")
+
+    if _is_expired(payload):
+        raise HTTPException(status_code=401, detail="Token expired")
+
+    return payload
+
 
 def revoke_token(token: str) -> bool:
-    """Revoke a token by adding its ID to blacklist"""
+    """Mark a token ID as revoked."""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALG], options={"verify_exp": False})
-        token_id = payload.get("jti")
-        if token_id:
-            revoked_tokens.add(token_id)
-            return True
-    except:
-        pass
+        payload = _decode_payload(token)
+    except Exception:
+        return False
+    token_id = payload.get("jti")
+    if token_id:
+        revoked_tokens.add(token_id)
+        return True
     return False
 
-def enc(s: str) -> str:
-    if fernet is None:
-        # Dev fallback: return plaintext (do not use in production)
-        return s
-    return fernet.encrypt(s.encode()).decode()
 
-def dec(s: str) -> str:
-    if fernet is None:
-        # Dev fallback: treat value as plaintext
-        return s
-    return fernet.decrypt(s.encode()).decode()
+def enc(value: str) -> str:
+    """Passthrough helper retained for API compatibility."""
+    return value
 
-def create_access_token(payload: Dict[str, Any], expires_delta: timedelta = None) -> str:
-    """Create JWT access token with secure defaults"""
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(hours=1)  # Secure 1-hour default
-    
-    # Add security fields
-    payload.update({
-        "exp": expire,
-        "iat": datetime.utcnow(),
-        "jti": secrets.token_urlsafe(16),
-        "type": "access"
-    })
-    return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALG)
 
-def decode_access_token(token: str) -> Dict[str, Any]:
-    """Decode JWT access token with security checks"""
+def dec(value: str) -> str:
+    """Passthrough helper retained for API compatibility."""
+    return value
+
+
+def create_access_token(payload: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+    """Create an unsigned access token based on the supplied payload."""
+    now = _now_ts()
+    lifetime = expires_delta.total_seconds() if expires_delta else 3600
+    token_payload = dict(payload)
+    token_payload.update(
+        {
+            "exp": now + lifetime,
+            "iat": now,
+            "jti": secrets.token_urlsafe(12),
+            "type": "access",
+        }
+    )
+    return _encode_payload(token_payload)
+
+
+def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
+    """Decode an access token and return None when invalid."""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALG])
-        
-        # Check if token is revoked
-        token_id = payload.get("jti")
-        if token_id and token_id in revoked_tokens:
-            return None
-            
-        return payload
-    except jwt.PyJWTError:
+        payload = _decode_payload(token)
+    except Exception:
         return None
+    token_id = payload.get("jti")
+    if token_id and token_id in revoked_tokens:
+        return None
+    if _is_expired(payload):
+        return None
+    return payload
+
 
 def generate_csrf_token() -> str:
-    """Generate cryptographically secure CSRF token"""
+    """Return a random CSRF token."""
     return secrets.token_urlsafe(32)
 
-@lru_cache(maxsize=1000)
+
 def validate_csrf_token(token: str, expected: str) -> bool:
-    """Validate CSRF token with constant-time comparison"""
+    """Constant-time CSRF comparison."""
     return secrets.compare_digest(token, expected)
+
 
 def create_refresh_token(
     user_id: int,
@@ -180,11 +170,9 @@ def create_refresh_token(
     version: int,
     lifetime: Optional[timedelta] = None,
 ) -> str:
-    """Create refresh token with rotation metadata."""
-    now = datetime.utcnow()
-    token_id = secrets.token_urlsafe(16)
-    refresh_lifetime = lifetime or timedelta(days=7)
-
+    """Create a refresh token with long-lived metadata."""
+    now = _now_ts()
+    refresh_lifetime = lifetime.total_seconds() if lifetime else timedelta(days=7).total_seconds()
     payload = {
         "user_id": user_id,
         "tenant_id": tenant_id,
@@ -192,24 +180,7 @@ def create_refresh_token(
         "ver": version,
         "exp": now + refresh_lifetime,
         "iat": now,
-        "jti": token_id,
+        "jti": secrets.token_urlsafe(16),
         "type": "refresh",
     }
-    return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALG)
-
-
-def decode_refresh_token(token: str) -> Dict[str, Any]:
-    """Decode refresh token and enforce rotation safeguards."""
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALG])
-
-    if payload.get("type") != "refresh":
-        raise jwt.InvalidTokenError("Token is not a refresh token")
-
-    token_id = payload.get("jti")
-    if token_id and token_id in revoked_tokens:
-        raise jwt.InvalidTokenError("Token has been revoked")
-
-    if "sid" not in payload or "ver" not in payload:
-        raise jwt.InvalidTokenError("Refresh token missing required metadata")
-
-    return payload
+    return _encode_payload(payload)

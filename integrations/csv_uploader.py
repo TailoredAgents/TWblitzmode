@@ -7,6 +7,8 @@ import hashlib
 import uuid
 from typing import Optional
 
+DEFAULT_CSV_SECRET = "csv-signature"
+
 try:
     import boto3  # type: ignore
     from botocore.exceptions import BotoCoreError, ClientError  # type: ignore
@@ -26,7 +28,7 @@ def build_app_csv_url(base_url: str, csv_content: str, secret: Optional[str] = N
     Build a signed URL to our CSV endpoint served by the app.
     Requires that base_url is publicly reachable over HTTPS.
     """
-    secret = secret or os.getenv("SECRET_KEY", "dev-secret")
+    secret = secret or DEFAULT_CSV_SECRET
     b64 = base64.b64encode(csv_content.encode("utf-8")).decode("ascii")
     sig = _sign(b64, secret)
     base = base_url.rstrip('/')
@@ -112,4 +114,3 @@ def upload_csv_to_gist(csv_content: str, filename: str = "profiles.csv") -> str:
     if not raw_url:
         raise RuntimeError("Could not determine gist raw_url")
     return raw_url
-

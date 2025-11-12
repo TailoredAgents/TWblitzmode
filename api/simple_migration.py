@@ -14,9 +14,7 @@ def run_simple_migration(current_user: Dict[str, Any] = Depends(get_current_user
         raise HTTPException(403, "Admin access required")
     
     import os
-    
-    # Set the database URL directly
-    os.environ['DATABASE_URL'] = "postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI"
+    # DATABASE_URL must be set in the environment.
     
     try:
         from .mt_db import get_db

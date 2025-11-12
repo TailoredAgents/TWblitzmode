@@ -116,8 +116,7 @@ class EnterpriseMasterGamePlanOrchestrator:
     """
 
     def __init__(self):
-        self.database_url = os.getenv("DATABASE_URL",
-            "postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI")
+        self.database_url = os.getenv("DATABASE_URL")
 
         # Enterprise services
         self.persistence_service = workflow_persistence_service

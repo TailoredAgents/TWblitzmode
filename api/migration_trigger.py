@@ -5,8 +5,7 @@ Simple migration trigger that can be run via HTTP endpoint
 import os
 import traceback
 
-# Set database URL
-os.environ['DATABASE_URL'] = "postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI"
+# DATABASE_URL must be provided via environment; no hard-coded DSN here.
 
 def run_migration():
     """Run the database migration with error handling"""

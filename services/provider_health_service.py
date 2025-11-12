@@ -64,13 +64,8 @@ def _build_cookie_vault_status() -> Dict[str, Any]:
     try:
         service = CookieVaultService()
         health = service.get_health_status()
-        configured = bool(health.get("keyConfigured"))
-        message = (
-            "Cookie vault encryption key configured via AWS KMS." if health.get("kmsEnabled") else
-            "Cookie vault encryption key loaded (%s)." % health.get("keySource", "unknown")
-            if configured else
-            "Configure VAULT_ENCRYPTION_KEY or VAULT_ENCRYPTION_KEY_FILE to enable the cookie vault."
-        )
+        configured = True
+        message = "Cookie vault is running in plaintext mode; no encryption keys required."
         return {
             **health,
             "configured": configured,

@@ -146,6 +146,14 @@ class NativeConnectionWrapper:
         self._returned = False
 
     def cursor(self):
+        # Ensure tenant GUCs are set if available
+        try:
+            if self.tenant_id is not None:
+                with self._connection.cursor() as _gcur:
+                    _gcur.execute("SELECT set_config('app.current_organization_id', %s, true)", (self.tenant_id,))
+                    _gcur.execute("SELECT set_config('app.current_tenant_id', %s, true)", (self.tenant_id,))
+        except Exception:
+            logger.debug("Failed to set tenant GUCs on native connection", exc_info=True)
         cursor = self._connection.cursor(cursor_factory=psycopg_extras.RealDictCursor)
         return CompatCursor(cursor)
 
@@ -224,40 +232,16 @@ def get_db(*, tenant_id: Optional[str] = None):
 
 
 def run_migrations() -> None:
+    """Deprecated: Alembic manages migrations at startup via entrypoint.
+
+    This function is retained for backward compatibility and is a no-op.
     """
-    Ensure the PostgreSQL schema is present and up to date.
-
-    This replaces the old sqlite ``executescript`` workflow with the shared
-    Postgres migration helpers and the compatibility bootstrap routines from
-    ``api.database``.
-    """
-    dsn = _resolve_database_url()
-
-    # Ensure DSN availability for other components consuming Config.DATABASE_URL
-    Config.DATABASE_URL = dsn  # type: ignore[attr-defined]
-
-    # Reset the lazy database proxy to pick up any DSN changes.
     try:
-        _db_proxy.reset()
-    except Exception:  # pragma: no cover - defensive guard
-        logger.debug("Skipping database proxy reset", exc_info=True)
-
-    ensure_database_exists(dsn)
-    run_all_migrations(dsn)
-
-    conn = get_db()
-    try:
-        bootstrap_postgres_schema(conn)
-        conn.commit()
-    except Exception as exc:
-        conn.rollback()
-        logger.error("bootstrap_postgres_schema failed: %s", exc)
-        raise
-    finally:
-        conn.close()
-    if is_native_mode():
-        _reset_native_pool()
-    reset_db_mode_cache()
+        dsn = _resolve_database_url()
+        Config.DATABASE_URL = dsn  # type: ignore[attr-defined]
+    except Exception:
+        pass
+    logger.info("api.mt_db.run_migrations() deprecated; migrations handled by Alembic entrypoint.")
 
 
 def _row_value(row: Any, key: str, index: int) -> Optional[Any]:

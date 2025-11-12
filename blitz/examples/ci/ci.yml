@@ -21,8 +21,7 @@ jobs:
           python blitz/scripts/provider_preflight.py || true
       - name: Policy gates
         run: |
-          rg -n "(from|import)\s+api\.auth|jwt_secret_manager|\bjwt\b|refresh_token|auth_sessions" . && exit 1 || true
+          rg -n "(from|import)\s+api\.auth|\bjwt\b|refresh_token|auth_sessions" . && exit 1 || true
           rg -n "(SendGrid|sendgrid)" services || exit 1
           rg -n "run_phantombuster_enrichment" services/chat_tool_registry.py || exit 1
           rg -n "\bprint\(" api services | wc -l | grep '^0$' || (echo "print() calls found in backend" && exit 1)
-

@@ -198,6 +198,31 @@ class ApprovalQueueService:
 
         logger.info("✅ Approval Queue Service initialized")
 
+    async def _acquire_conn(self, organization_id: int):
+        """Acquire a pooled connection and set RLS tenant GUCs."""
+        class _ConnCtx:
+            def __init__(self, pool: asyncpg.Pool, org_id: int):
+                self.pool = pool
+                self.org_id = org_id
+                self.conn: Optional[asyncpg.Connection] = None
+            async def __aenter__(self):
+                self.conn = await self.pool.acquire()
+                try:
+                    await self.conn.execute("SELECT set_config('app.current_tenant_id', $1, true)", str(self.org_id))
+                    await self.conn.execute("SELECT set_config('app.current_organization_id', $1, true)", str(self.org_id))
+                except Exception:
+                    pass
+                return self.conn
+            async def __aexit__(self, exc_type, exc, tb):
+                if self.conn:
+                    try:
+                        await self.pool.release(self.conn)
+                    except Exception:
+                        pass
+        if not self.db_pool:
+            raise RuntimeError("ApprovalQueueService not initialized")
+        return _ConnCtx(self.db_pool, organization_id)
+
     async def create_approval_request(self,
                                     organization_id: int,
                                     request_type: ApprovalType,
@@ -293,7 +318,7 @@ class ApprovalQueueService:
                             comments: Optional[str] = None) -> Dict[str, Any]:
         """Approve an approval request"""
 
-        request = await self._get_approval_request(request_id)
+        request = await self._get_approval_request(request_id, organization_id=organization_id)
         if not request:
             return {"error": "Approval request not found"}
 
@@ -368,7 +393,7 @@ class ApprovalQueueService:
                            reason: str) -> Dict[str, Any]:
         """Reject an approval request"""
 
-        request = await self._get_approval_request(request_id)
+        request = await self._get_approval_request(request_id, organization_id=organization_id)
         if not request:
             return {"error": "Approval request not found"}
 
@@ -433,7 +458,7 @@ class ApprovalQueueService:
                                   limit: int = 50) -> List[Dict[str, Any]]:
         """Get pending approval requests for an organization"""
 
-        async with self.db_pool.acquire() as conn:
+        async with await self._acquire_conn(organization_id) as conn:
             if user_id:
                 # Get requests assigned to specific user
                 query = """
@@ -489,7 +514,7 @@ class ApprovalQueueService:
 
         since_date = datetime.now(timezone.utc) - timedelta(days=days)
 
-        async with self.db_pool.acquire() as conn:
+        async with await self._acquire_conn(organization_id) as conn:
             query = """
                 SELECT ar.*, tm.name as approver_name, req.name as requester_name
                 FROM approval_requests ar
@@ -515,7 +540,7 @@ class ApprovalQueueService:
 
         since_date = datetime.now(timezone.utc) - timedelta(days=days)
 
-        async with self.db_pool.acquire() as conn:
+        async with await self._acquire_conn(organization_id) as conn:
             # Basic metrics
             metrics = await conn.fetchrow("""
                 SELECT
@@ -670,7 +695,7 @@ class ApprovalQueueService:
         """Get approval rules for organization and request type"""
 
         # Try to get organization-specific rules
-        async with self.db_pool.acquire() as conn:
+        async with await self._acquire_conn(organization_id) as conn:
             try:
                 row = await conn.fetchrow("""
                     SELECT * FROM approval_rules
@@ -696,7 +721,7 @@ class ApprovalQueueService:
     async def _assign_approval_request(self, request: ApprovalRequest, rules: ApprovalRule):
         """Assign approval request to appropriate team member"""
 
-        async with self.db_pool.acquire() as conn:
+        async with await self._acquire_conn(request.organization_id) as conn:
             # Find available approvers with required role
             approvers = await conn.fetch("""
                 SELECT id, name, last_login
@@ -927,7 +952,7 @@ class ApprovalQueueService:
 
     async def _can_approve(self, user_id: int, request: ApprovalRequest, organization_id: int) -> bool:
         """Check if user can approve the request"""
-        async with self.db_pool.acquire() as conn:
+        async with await self._acquire_conn(request.organization_id) as conn:
             user = await conn.fetchrow("""
                 SELECT role FROM team_members
                 WHERE id = $1 AND organization_id = $2 AND is_active = true
@@ -946,7 +971,7 @@ class ApprovalQueueService:
 
     async def _store_approval_request(self, request: ApprovalRequest):
         """Store approval request in database"""
-        async with self.db_pool.acquire() as conn:
+        async with await self._acquire_conn(request.organization_id) as conn:
             await conn.execute("""
                 INSERT INTO approval_requests (
                     id, organization_id, workflow_id, request_type, title, description,
@@ -963,9 +988,20 @@ class ApprovalQueueService:
             request.approved_at, request.rejection_reason, request.escalation_reason,
             json.dumps(request.metadata or {}))
 
-    async def _get_approval_request(self, request_id: str) -> Optional[ApprovalRequest]:
+    async def _get_approval_request(self, request_id: str, organization_id: Optional[int] = None) -> Optional[ApprovalRequest]:
         """Get approval request from database"""
-        async with self.db_pool.acquire() as conn:
+        if self.db_pool is None:
+            raise RuntimeError("ApprovalQueueService not initialized")
+        if organization_id is not None:
+            async with await self._acquire_conn(organization_id) as conn:
+                row = await conn.fetchrow("""
+                    SELECT * FROM approval_requests WHERE id = $1
+                """, request_id)
+        else:
+            async with await self._acquire_conn(organization_id) as conn:
+                row = await conn.fetchrow("""
+                    SELECT * FROM approval_requests WHERE id = $1
+                """, request_id)
             row = await conn.fetchrow("""
                 SELECT * FROM approval_requests WHERE id = $1
             """, request_id)
@@ -999,7 +1035,7 @@ class ApprovalQueueService:
 
     async def _update_approval_request(self, request: ApprovalRequest):
         """Update approval request in database"""
-        async with self.db_pool.acquire() as conn:
+        async with await self._acquire_conn(request.organization_id) as conn:
             await conn.execute("""
                 UPDATE approval_requests SET
                     status = $1, assigned_to = $2, approved_by = $3, approved_at = $4,
@@ -1100,7 +1136,7 @@ class ApprovalQueueService:
         """Background task to process expiring requests"""
         while True:
             try:
-                async with self.db_pool.acquire() as conn:
+                async with await self._acquire_conn(request.organization_id) as conn:
                     # Find requests expiring in next 5 minutes
                     expiring_soon = await conn.fetch("""
                         SELECT id FROM approval_requests
@@ -1121,7 +1157,7 @@ class ApprovalQueueService:
         """Background task to escalate old pending requests"""
         while True:
             try:
-                async with self.db_pool.acquire() as conn:
+                async with await self._acquire_conn(request.organization_id) as conn:
                     # Find requests older than escalation threshold
                     old_requests = await conn.fetch("""
                         SELECT ar.*, ar.metadata::json->'escalation_threshold_hours' as threshold_hours

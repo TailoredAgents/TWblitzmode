@@ -52,6 +52,17 @@ async def logging_middleware(request: Request, call_next: Callable[[Request], Re
     logger = logging.getLogger("api")
     corr_id = request.headers.get("X-Correlation-Id") or str(uuid.uuid4())
     request.state.corr_id = corr_id
+    # Capture optional tenant header and set tenant context for this request
+    tenant_header = request.headers.get("X-Organization-Id") or request.headers.get("X-Tenant-Id")
+    tenant_token = None
+    if tenant_header:
+        try:
+            from api.tenant_context import set_tenant  # local import to avoid cycles
+            tenant_token = set_tenant(tenant_header.strip())
+            request.state.organization_id = tenant_header.strip()
+            request.state.tenant_id = tenant_header.strip()
+        except Exception:
+            logger.debug("Failed to set tenant context from header", exc_info=True)
     start = time.perf_counter()
     try:
         response = await call_next(request)
@@ -74,8 +85,16 @@ async def logging_middleware(request: Request, call_next: Callable[[Request], Re
             "latency_ms": elapsed_ms,
             "service": os.getenv("SERVICE_NAME", "link-api"),
             "version": os.getenv("SERVICE_VERSION", "dev"),
+            "tenant_id": getattr(request.state, "tenant_id", None),
+            "org_id": getattr(request.state, "organization_id", None),
         },
     )
+    # Reset tenant context if set
+    if tenant_token is not None:
+        try:
+            from api.tenant_context import reset_tenant  # local import
+            reset_tenant(tenant_token)
+        except Exception:
+            logger.debug("Failed to reset tenant context", exc_info=True)
     response.headers["X-Correlation-Id"] = corr_id
     return response
-

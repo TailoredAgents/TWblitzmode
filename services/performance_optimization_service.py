@@ -11,6 +11,7 @@ Optimizations for 1000+ concurrent users:
 """
 
 import asyncio
+import os
 import asyncpg
 import aioredis
 import time
@@ -567,8 +568,8 @@ async def get_performance_service() -> PerformanceOptimizationService:
     """Get global performance service instance"""
     global performance_service
     if not performance_service:
-        database_url = "postgresql://vouchlink_ai_user:G0cKKzLekD8EYygLMkymwoKlU3wdBqhk@dpg-d2f3ne2li9vc73bf5gg0-a.oregon-postgres.render.com/VouchLink-AIVouchLink AI"
-        redis_url = "redis://localhost:6379/0"
+        database_url = os.getenv("DATABASE_URL")
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
         performance_service = PerformanceOptimizationService(database_url, redis_url)
         await performance_service.initialize()

@@ -7,12 +7,7 @@ import pytest  # type: ignore[import-not-found]
 from fastapi import HTTPException
 from starlette.requests import Request
 
-# Ensure the auth helpers load with deterministic secrets in test environments.
-SECRET_VALUE = "test-jwt-secret-key-32-bytes-min!"
-
-os.environ.setdefault("ENC_KEY", "WpMU5mABapY-XJ0rwu1_20AuZlyzDSvEZQK1OkHe4FA=")
-os.environ.setdefault("SECRET_KEY", SECRET_VALUE)
-os.environ.setdefault("JWT_SECRET", SECRET_VALUE)
+# Ensure deterministic defaults in the test process.
 os.environ.setdefault("DATABASE_URL", "postgresql://localhost/test_db")
 os.environ.setdefault("TEST_DATABASE_URL", "postgresql://localhost/test_db")
 os.environ.setdefault("DB_COMPAT_MODE", "native")

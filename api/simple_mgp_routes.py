@@ -3,12 +3,13 @@ Simple Master Game Plan API Routes
 Basic implementation for testing the Master Game Plan functionality
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import asyncio
 import json
 import asyncpg
+from services.asyncpg_rls import acquire_conn
 import os
 from datetime import datetime
 
@@ -38,11 +39,13 @@ class AutomationRequest(BaseModel):
 # ===================================================================
 
 @router.get("/health")
-async def health_check():
+async def health_check(organization_id: int = 1, x_organization_id: Optional[int] = Header(None)):
     """Master Game Plan health check"""
     try:
-        # Check database connection
-        conn = await asyncpg.connect(os.environ["DATABASE_URL"])
+        # Connect with tenant GUCs set
+        org = int(x_organization_id) if x_organization_id is not None else int(organization_id)
+        dsn = os.environ["DATABASE_URL"]
+        async with acquire_conn(dsn, org) as conn:
 
         # Check if MGP tables exist
         mgp_tables = ["companies", "executives", "connections", "connector_rankings", "company_settings", "automation_jobs"]
@@ -57,12 +60,13 @@ async def health_check():
             """, table)
             table_status[table] = "exists" if exists else "missing"
 
-        await conn.close()
-
+        # Assert GUC is set correctly
+        guc_val = await conn.fetchval("SELECT current_setting('app.current_tenant_id', true)")
         return {
             "status": "operational",
             "timestamp": datetime.utcnow().isoformat(),
             "database": "connected",
+            "tenant_context": guc_val,
             "tables": table_status,
             "services": {
                 "company_exec_search": "ready",
@@ -75,10 +79,12 @@ async def health_check():
         raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 
 @router.post("/companies/upload")
-async def upload_companies(request: CompanyUploadRequest):
+async def upload_companies(request: CompanyUploadRequest, organization_id: int = 1, x_organization_id: Optional[int] = Header(None)):
     """Upload companies for Master Game Plan automation"""
     try:
-        conn = await asyncpg.connect(os.environ["DATABASE_URL"])
+        org = int(x_organization_id) if x_organization_id is not None else int(organization_id)
+        dsn = os.environ["DATABASE_URL"]
+        async with acquire_conn(dsn, org) as conn:
 
         uploaded_companies = []
 
@@ -105,8 +111,6 @@ async def upload_companies(request: CompanyUploadRequest):
                 "status": "uploaded"
             })
 
-        await conn.close()
-
         return {
             "success": True,
             "message": f"Successfully uploaded {len(uploaded_companies)} companies",
@@ -118,10 +122,12 @@ async def upload_companies(request: CompanyUploadRequest):
         raise HTTPException(status_code=500, detail=f"Company upload failed: {str(e)}")
 
 @router.post("/automation/start")
-async def start_automation(request: AutomationRequest):
+async def start_automation(request: AutomationRequest, organization_id: int = 1, x_organization_id: Optional[int] = Header(None)):
     """Start Master Game Plan automation for a company"""
     try:
-        conn = await asyncpg.connect(os.environ["DATABASE_URL"])
+        org = int(x_organization_id) if x_organization_id is not None else int(organization_id)
+        dsn = os.environ["DATABASE_URL"]
+        async with acquire_conn(dsn, org) as conn:
 
         # Find the company
         company = await conn.fetchrow("""
@@ -147,8 +153,6 @@ async def start_automation(request: AutomationRequest):
             "company_name": request.company_name
         }))
 
-        await conn.close()
-
         return {
             "success": True,
             "automation_id": job_id,
@@ -170,10 +174,12 @@ async def start_automation(request: AutomationRequest):
         raise HTTPException(status_code=500, detail=f"Automation start failed: {str(e)}")
 
 @router.get("/automation/{automation_id}/status")
-async def get_automation_status(automation_id: int):
+async def get_automation_status(automation_id: int, organization_id: int = 1, x_organization_id: Optional[int] = Header(None)):
     """Get status of a Master Game Plan automation"""
     try:
-        conn = await asyncpg.connect(os.environ["DATABASE_URL"])
+        org = int(x_organization_id) if x_organization_id is not None else int(organization_id)
+        dsn = os.environ["DATABASE_URL"]
+        async with acquire_conn(dsn, org) as conn:
 
         job = await conn.fetchrow("""
             SELECT aj.*, c.name as company_name
@@ -184,8 +190,6 @@ async def get_automation_status(automation_id: int):
 
         if not job:
             raise HTTPException(status_code=404, detail="Automation job not found")
-
-        await conn.close()
 
         return {
             "automation_id": job["id"],
@@ -205,10 +209,12 @@ async def get_automation_status(automation_id: int):
         raise HTTPException(status_code=500, detail=f"Status check failed: {str(e)}")
 
 @router.get("/companies")
-async def list_companies():
+async def list_companies(organization_id: int = 1, x_organization_id: Optional[int] = Header(None)):
     """List all companies in the Master Game Plan"""
     try:
-        conn = await asyncpg.connect(os.environ["DATABASE_URL"])
+        org = int(x_organization_id) if x_organization_id is not None else int(organization_id)
+        dsn = os.environ["DATABASE_URL"]
+        async with acquire_conn(dsn, org) as conn:
 
         companies = await conn.fetch("""
             SELECT id, name, domain, industry, status, automation_enabled,
@@ -216,8 +222,6 @@ async def list_companies():
             FROM companies
             ORDER BY created_at DESC
         """)
-
-        await conn.close()
 
         return {
             "success": True,
@@ -229,10 +233,12 @@ async def list_companies():
         raise HTTPException(status_code=500, detail=f"Failed to list companies: {str(e)}")
 
 @router.get("/automations")
-async def list_automations():
+async def list_automations(organization_id: int = 1, x_organization_id: Optional[int] = Header(None)):
     """List all automation jobs"""
     try:
-        conn = await asyncpg.connect(os.environ["DATABASE_URL"])
+        org = int(x_organization_id) if x_organization_id is not None else int(organization_id)
+        dsn = os.environ["DATABASE_URL"]
+        async with acquire_conn(dsn, org) as conn:
 
         automations = await conn.fetch("""
             SELECT aj.id, aj.job_status, aj.progress_percentage, aj.created_at,
@@ -241,8 +247,6 @@ async def list_automations():
             JOIN companies c ON aj.company_id = c.id
             ORDER BY aj.created_at DESC
         """)
-
-        await conn.close()
 
         return {
             "success": True,

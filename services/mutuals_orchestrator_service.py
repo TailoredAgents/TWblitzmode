@@ -1185,10 +1185,30 @@ class MutualsOrchestratorService:
             )
         return self.database_url
 
+    async def _acquire_conn(self, tenant_id: str):
+        """Async context manager yielding a connection with RLS GUCs set."""
+        class _ConnCtx:
+            def __init__(self, dsn: str, tenant: str):
+                self.dsn = dsn
+                self.tenant = tenant
+                self.conn: Optional[asyncpg.Connection] = None
+            async def __aenter__(self):
+                self.conn = await asyncpg.connect(self.dsn)
+                try:
+                    await self.conn.execute("SELECT set_config('app.current_tenant_id', $1, true)", self.tenant)
+                    await self.conn.execute("SELECT set_config('app.current_organization_id', $1, true)", self.tenant)
+                except Exception:
+                    pass
+                return self.conn
+            async def __aexit__(self, exc_type, exc, tb):
+                if self.conn:
+                    await self.conn.close()
+        return _ConnCtx(self._require_database_url(), str(tenant_id))
+
     async def _get_active_team_members(self, tenant_id: str) -> List[str]:
         """Get list of active team members with valid LinkedIn sessions"""
 
-        async with asyncpg.connect(self._require_database_url()) as conn:
+        async with await self._acquire_conn(tenant_id) as conn:
             rows = await conn.fetch("""
                 SELECT id FROM team_members
                 WHERE organization_id = $1 AND is_active = true
@@ -1200,7 +1220,7 @@ class MutualsOrchestratorService:
     async def _get_prospect_data(self, tenant_id: str, prospect_id: str) -> Optional[Dict]:
         """Get prospect data from database"""
 
-        async with asyncpg.connect(self._require_database_url()) as conn:
+        async with await self._acquire_conn(tenant_id) as conn:
             row = await conn.fetchrow("""
                 SELECT id, company, full_name, linkedin_url, title
                 FROM prospects
@@ -1256,7 +1276,7 @@ class MutualsOrchestratorService:
                                       mutual_connections: List[MutualConnection]):
         """Store mutual connections in database"""
 
-        async with asyncpg.connect(self._require_database_url()) as conn:
+        async with await self._acquire_conn(tenant_id) as conn:
             try:
                 organization_id_int = int(tenant_id)
             except (TypeError, ValueError):
@@ -1390,7 +1410,7 @@ class MutualsOrchestratorService:
     async def _store_discovery_job(self, discovery_job: MutualsDiscoveryJob):
         """Store discovery job in database"""
 
-        async with asyncpg.connect(self._require_database_url()) as conn:
+        async with await self._acquire_conn(tenant_id) as conn:
             await conn.execute("""
                 INSERT INTO mutuals_discovery_jobs (
                     job_id, tenant_id, integration_set_id, prospect_ids, team_member_ids,
@@ -1413,7 +1433,7 @@ class MutualsOrchestratorService:
     async def _update_discovery_job(self, discovery_job: MutualsDiscoveryJob):
         """Update discovery job in database"""
 
-        async with asyncpg.connect(self._require_database_url()) as conn:
+        async with await self._acquire_conn(tenant_id) as conn:
             await conn.execute("""
                 UPDATE mutuals_discovery_jobs SET
                     status = $2,
@@ -1439,7 +1459,7 @@ class MutualsOrchestratorService:
     async def get_job_status(self, job_id: str, tenant_id: str) -> Optional[Dict]:
         """Get discovery job status"""
 
-        async with asyncpg.connect(self._require_database_url()) as conn:
+        async with await self._acquire_conn(tenant_id) as conn:
             row = await conn.fetchrow("""
                 SELECT * FROM mutuals_discovery_jobs
                 WHERE job_id = $1 AND tenant_id = $2
@@ -1591,7 +1611,7 @@ class MutualsOrchestratorService:
 
         # Check database
         try:
-            async with asyncpg.connect(self._require_database_url()) as conn:
+            async with await self._acquire_conn(tenant_id) as conn:
                 await conn.fetchval("SELECT 1")
             health_status["database"] = {"status": "available"}
         except Exception as e:
@@ -1628,7 +1648,7 @@ class MutualsOrchestratorService:
             return MutualsResult(connectors=[])
 
         try:
-            async with asyncpg.connect(self._require_database_url()) as conn:
+            async with await self._acquire_conn(tenant_id) as conn:
                 rows = await conn.fetch("""
                     SELECT
                         pc.id AS prospect_connector_id,
