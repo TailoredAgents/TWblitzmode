@@ -119,15 +119,6 @@ class EnvironmentValidationService:
                 validation_function=self._validate_cufinder
             ),
 
-            "hunter": ServiceConfig(
-                name="Hunter API",
-                description="Email discovery and verification",
-                required_env_vars=["HUNTER_API_KEY"],
-                optional_env_vars=["HUNTER_TIMEOUT"],
-                priority=ServicePriority.MEDIUM,
-                validation_function=self._validate_hunter
-            ),
-
             "sendgrid": ServiceConfig(
                 name="SendGrid Email",
                 description="Email delivery service",
@@ -433,18 +424,6 @@ class EnvironmentValidationService:
 
         except Exception as e:
             return {"success": False, "error": f"CUFinder validation failed: {str(e)}"}
-
-    async def _validate_hunter(self) -> Dict[str, Any]:
-        """Validate Hunter API"""
-        try:
-            api_key = os.getenv("HUNTER_API_KEY")
-            if not api_key:
-                return {"success": False, "error": "HUNTER_API_KEY not configured"}
-
-            return {"success": True, "api_key_configured": True}
-
-        except Exception as e:
-            return {"success": False, "error": f"Hunter validation failed: {str(e)}"}
 
     async def _validate_apify(self) -> Dict[str, Any]:
         """Validate Apify API"""

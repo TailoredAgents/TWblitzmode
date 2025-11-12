@@ -8,8 +8,8 @@ for connector email discovery using multiple providers.
 Features:
 - Corporate schema integration (organizations, prospects, connectors)
 - Batch processing with intelligent queuing
-- Multi-provider email discovery (CUFinder, Clearbit, Hunter)
-- Confidence scoring and validation
+- CUFinder-powered email discovery with caching
+- Confidence scoring
 - Cost optimization with caching
 - Rate limiting and quota management
 - Comprehensive audit logging
@@ -25,10 +25,8 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
 
-# Import existing integration clients
+# Import existing integration client
 from integrations.cufinder_client import CUFinderClient, EmailEnrichmentResult, EnrichmentStatus
-from integrations.hunter_client import HunterClient, HunterEmailResult, HunterStatus
-from integrations.zerobounce_client import ZeroBounceClient, ZeroBounceResult, ZeroBounceStatus
 
 logger = logging.getLogger(__name__)
 
@@ -91,27 +89,6 @@ class CorporateEmailEnrichmentService:
             logger.warning(
                 "CUFinder client operating in degraded mode: configure an API key to enable enrichment."
             )
-
-        try:
-            self.hunter_client = HunterClient()        # Fallback
-        except Exception as exc:
-            logger.warning(f"Hunter client unavailable: {exc}")
-            self.hunter_client = None
-
-        try:
-            self.zerobounce_client = ZeroBounceClient() # Validation
-        except Exception as exc:
-            logger.warning(f"ZeroBounce client unavailable: {exc}")
-            self.zerobounce_client = None
-
-        # Provider priority order
-        available_providers = []
-        if self.cufinder_client is not None and self.cufinder_client.is_configured:
-            available_providers.append('cufinder')
-        if self.hunter_client is not None:
-            available_providers.append('hunter')
-        self.provider_priority = available_providers
-        self.enable_email_validation = os.getenv('ENABLE_EMAIL_VALIDATION', 'true').lower() == 'true'
 
     async def enrich_prospect_connectors(
         self,
@@ -447,61 +424,28 @@ class CorporateEmailEnrichmentService:
         last_name = ' '.join(name_parts[1:]) if len(name_parts) > 1 else ''
         company = connector.get('company', '')
 
-        # Extract domain from company or LinkedIn URL
-        company_domain = await self._extract_company_domain(company, connector.get('linkedin_url', ''))
-
-        best_result = None
-        last_error = "No providers available"
-
-        # Try each provider in priority order
-        for provider in self.provider_priority:
-            try:
-                logger.info(f"Trying {provider} for {full_name} at {company}")
-
-                if provider == 'cufinder':
-                    result = await self._try_cufinder(first_name, last_name, company, connector)
-                elif provider == 'hunter':
-                    result = await self._try_hunter(first_name, last_name, company_domain, connector)
-                else:
-                    continue
-
-                # If we found an email with good confidence, use it
-                if result.email and result.confidence >= self.min_confidence_threshold:
-                    logger.info(f"Found email via {provider}: {result.email} (confidence: {result.confidence})")
-
-                    # Optionally validate with ZeroBounce
-                    if self.enable_email_validation:
-                        result = await self._validate_email_result(result)
-
-                    return result
-
-                # Keep track of best result so far
-                if result.email and (not best_result or result.confidence > best_result.confidence):
-                    best_result = result
-
-                last_error = result.error_message or f"{provider} found no email"
-
-            except Exception as e:
-                logger.warning(f"Provider {provider} failed for {full_name}: {e}")
-                last_error = str(e)
-                continue
-
-        # Return best result found, or create failure result
-        if best_result:
-            logger.info(f"Using best result from {best_result.source}: {best_result.email}")
-            return best_result
-        else:
+        try:
+            result = await self._try_cufinder(first_name, last_name, company, connector)
+        except Exception as exc:
+            logger.warning(f"CUFinder lookup failed for {full_name}: {exc}")
             return ConnectorEmailResult(
                 connector_id=connector['connector_id'],
                 prospect_connector_id=connector['prospect_connector_id'],
                 email=None,
                 confidence=0.0,
-                source='multi_provider',
-                status=EmailDiscoveryStatus.NO_EMAILS_FOUND,
+                source='cufinder',
+                status=EmailDiscoveryStatus.FAILED,
                 cost_usd=0.0,
                 processing_time_seconds=time.time() - start_time,
-                error_message=last_error
+                error_message=str(exc),
             )
+
+        if result.email and result.confidence >= self.min_confidence_threshold:
+            logger.info(f"Found email via CUFinder: {result.email} (confidence: {result.confidence})")
+            return result
+
+        # Return whatever CUFinder produced (could be low confidence or empty)
+        return result
 
     async def _try_cufinder(
         self,
@@ -539,112 +483,7 @@ class CorporateEmailEnrichmentService:
             error_message=enrichment_result.error_message,
         )
 
-    async def _try_hunter(
-        self,
-        first_name: str,
-        last_name: str,
-        company_domain: str,
-        connector: Dict[str, Any]
-    ) -> ConnectorEmailResult:
-        """Try Hunter.io email discovery"""
-
-        if not company_domain:
-            return ConnectorEmailResult(
-                connector_id=connector['connector_id'],
-                prospect_connector_id=connector['prospect_connector_id'],
-                email=None,
-                confidence=0.0,
-                source='hunter',
-                status=EmailDiscoveryStatus.FAILED,
-                cost_usd=0.0,
-                processing_time_seconds=0.0,
-                error_message="No company domain available"
-            )
-
-        hunter_result = await self.hunter_client.find_email(first_name, last_name, company_domain)
-
-        return ConnectorEmailResult(
-            connector_id=connector['connector_id'],
-            prospect_connector_id=connector['prospect_connector_id'],
-            email=hunter_result.email,
-            confidence=hunter_result.confidence,
-            source='hunter',
-            status=EmailDiscoveryStatus.COMPLETED if hunter_result.email else EmailDiscoveryStatus.NO_EMAILS_FOUND,
-            cost_usd=hunter_result.cost,
-            processing_time_seconds=0.5,
-            error_message=hunter_result.error_message
-        )
-
-    async def _validate_email_result(self, result: ConnectorEmailResult) -> ConnectorEmailResult:
-        """Validate email using ZeroBounce and adjust confidence"""
-
-        if not result.email:
-            return result
-
-        try:
-            validation_result = await self.zerobounce_client.validate_email(result.email)
-
-            # Adjust confidence based on validation
-            if validation_result.status == ZeroBounceStatus.VALID:
-                result.confidence = min(1.0, result.confidence + 0.2)
-            elif validation_result.status == ZeroBounceStatus.INVALID:
-                result.confidence = max(0.0, result.confidence - 0.5)
-                if validation_result.toxic or validation_result.disposable:
-                    result.email = None  # Remove toxic/disposable emails
-                    result.status = EmailDiscoveryStatus.NO_EMAILS_FOUND
-                    result.error_message = "Email failed validation (toxic/disposable)"
-            elif validation_result.status == ZeroBounceStatus.CATCH_ALL:
-                result.confidence = min(0.6, result.confidence)
-
-            result.source += "_validated"
-
-        except Exception as e:
-            logger.warning(f"Email validation failed for {result.email}: {e}")
-            # Don't fail the whole result if validation fails
-
-        return result
-
-    async def _extract_company_domain(self, company: str, linkedin_url: str) -> Optional[str]:
-        """Extract company domain from company name or LinkedIn URL"""
-
-        if not company:
-            return None
-
-        # Simple domain extraction logic
-        # In production, you might want to use a more sophisticated service
-        company_lower = company.lower().strip()
-
-        # Common company name to domain mappings
-        domain_mappings = {
-            'google': 'google.com',
-            'microsoft': 'microsoft.com',
-            'apple': 'apple.com',
-            'amazon': 'amazon.com',
-            'facebook': 'facebook.com',
-            'meta': 'meta.com',
-            'netflix': 'netflix.com',
-            'salesforce': 'salesforce.com',
-            'uber': 'uber.com',
-            'airbnb': 'airbnb.com'
-        }
-
-        # Check for exact matches
-        if company_lower in domain_mappings:
-            return domain_mappings[company_lower]
-
-        # Try to construct domain from company name
-        # Remove common corporate suffixes
-        clean_company = company_lower
-        for suffix in [' inc', ' corp', ' corporation', ' llc', ' ltd', ' limited', ' co']:
-            clean_company = clean_company.replace(suffix, '')
-
-        # Replace spaces with nothing or hyphens
-        clean_company = clean_company.replace(' ', '')
-
-        if clean_company and len(clean_company) > 2:
-            return f"{clean_company}.com"
-
-        return None
+    # Legacy multi-provider stubs removed; CUFinder is the sole enrichment path.
 
     async def _check_email_cache(
         self,

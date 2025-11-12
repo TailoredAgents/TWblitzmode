@@ -63,6 +63,7 @@ if os.getenv("MINIMAL_ROUTERS_ONLY", "").lower() not in ("1", "true", "yes"):  #
 
     # Select Link routers only (no legacy auth/admin/dev-portal)
     for mod in (
+        "api.routes_auth",
         "api.routes_email",
         "api.routes_email_webhooks",
         "api.routes_linkedin",

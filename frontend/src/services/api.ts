@@ -150,6 +150,19 @@ class APIService {
     return undefined;
   }
 
+  private static resolveDefaultOrgId(): string | undefined {
+    const raw =
+      process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ??
+      process.env.NEXT_PUBLIC_ORGANIZATION_ID ??
+      process.env.NEXT_PUBLIC_TENANT_ID ??
+      process.env.ORGANIZATION_ID ??
+      process.env.TENANT_ID;
+    if (typeof raw === 'string' && raw.trim().length > 0) {
+      return raw.trim();
+    }
+    return undefined;
+  }
+
   private toApiResponse<T>(response: AxiosResponse<unknown>): APIResponse<T> {
     const rawPayload = response.data ?? {};
     const payload: Record<string, unknown> =
@@ -428,8 +441,12 @@ class APIService {
     if (credentials.email) {
       payload.email = credentials.email;
     }
+    const defaultOrg = APIService.resolveDefaultOrgId();
     const response = await this.client.post('/api/auth/login', payload, {
-      headers: new AxiosHeaders({ 'X-Auth-Login': '1' }),
+      headers: new AxiosHeaders({
+        'X-Auth-Login': '1',
+        ...(defaultOrg ? { 'X-Organization-Id': defaultOrg } : {}),
+      }),
       withCredentials: true,
     });
     const raw = response.data;
@@ -466,7 +483,13 @@ class APIService {
   }
 
   async getLoginRoster(): Promise<APIResponse<LoginRosterUser[]>> {
-    const response = await this.client.get('/api/auth/login/roster');
+    const defaultOrg = APIService.resolveDefaultOrgId();
+    const response = await this.client.get('/api/auth/login/roster', {
+      headers: new AxiosHeaders({
+        ...(defaultOrg ? { 'X-Organization-Id': defaultOrg } : {}),
+      }),
+      withCredentials: true,
+    });
     const raw = response.data;
     const records = Array.isArray(raw?.users)
       ? raw.users.filter((item: unknown): item is Record<string, unknown> => typeof item === 'object' && item !== null)

@@ -24,7 +24,6 @@ import traceback
 
 from integrations.clearbit_client import ClearbitClient, create_clearbit_client
 from integrations.cufinder_client import CUFinderClient
-from integrations.hunter_client import HunterClient
 from integrations.apollo_client import ApolloClient
 from integrations.sendgrid_client import SendGridEmailService
 from integrations.apify_client import ApifyClient
@@ -37,7 +36,6 @@ class IntegrationProvider(Enum):
     CLEARBIT = "clearbit"
     APOLLO = "apollo"
     CUFINDER = "cufinder"
-    HUNTER = "hunter"
     SENDGRID = "sendgrid"
     APIFY = "apify"
     PHANTOMBUSTER = "phantombuster"
@@ -73,7 +71,6 @@ class IntegrationConfig:
     clearbit_api_key: Optional[str] = None
     apollo_api_key: Optional[str] = None
     cufinder_api_key: Optional[str] = None
-    hunter_api_key: Optional[str] = None
     sendgrid_api_key: Optional[str] = None
     apify_api_key: Optional[str] = None
     phantombuster_api_key: Optional[str] = None
@@ -82,7 +79,6 @@ class IntegrationConfig:
     enable_clearbit: bool = True
     enable_apollo_fallback: bool = True
     enable_cufinder: bool = True
-    enable_hunter_fallback: bool = True
     enable_email_sending: bool = True
     enable_linkedin_scraping: bool = True
 
@@ -108,7 +104,6 @@ class ExternalAPIOrchestrator:
         self.clearbit_client = None
         self.apollo_client = None
         self.cufinder_client = None
-        self.hunter_client = None
         self.sendgrid_client = None
         self.apify_client = None
 
@@ -146,11 +141,6 @@ class ExternalAPIOrchestrator:
                     redis_url=self.redis_url
                 )
                 logger.info("✅ CUFinder client initialized")
-
-            # Initialize Hunter
-            if self.config.hunter_api_key and self.config.enable_hunter_fallback:
-                self.hunter_client = HunterClient()
-                logger.info("✅ Hunter client initialized")
 
             # Initialize SendGrid
             if self.config.sendgrid_api_key and self.config.enable_email_sending:
@@ -255,7 +245,7 @@ class ExternalAPIOrchestrator:
                           tenant_id: int,
                           contacts: List[Dict[str, Any]]) -> List[IntegrationResult]:
         """
-        Batch email enrichment using CUFinder and Hunter fallback
+        Batch email enrichment using CUFinder
 
         Args:
             contacts: List of contacts with name and company info
@@ -285,20 +275,6 @@ class ExternalAPIOrchestrator:
                 # Track successful enrichments
                 successful_count = len([r for r in cufinder_results if r.success])
                 await self._record_usage(tenant_id, "email_enrichment", "cufinder", successful_count)
-
-            # Fallback: Hunter for failed cases
-            if self.config.enable_hunter_fallback:
-                failed_contacts = [
-                    contacts[i] for i, result in enumerate(results)
-                    if not result.success
-                ]
-
-                if failed_contacts:
-                    hunter_results = await self._try_hunter_batch(failed_contacts)
-                    # Replace failed results with Hunter results
-                    for i, result in enumerate(results):
-                        if not result.success and i < len(hunter_results):
-                            results[i] = hunter_results[i]
 
             logger.info(f"✅ Email enrichment complete: {len([r for r in results if r.success])}/{len(contacts)} successful")
             return results
@@ -585,43 +561,6 @@ class ExternalAPIOrchestrator:
                 results.append(IntegrationResult(
                     operation=OperationType.EMAIL_ENRICHMENT,
                     provider=IntegrationProvider.CUFINDER,
-                    success=False,
-                    error_message=str(e)
-                ))
-
-        return results
-
-    async def _try_hunter_batch(self, contacts: List[Dict[str, Any]]) -> List[IntegrationResult]:
-        """Try Hunter email enrichment (fallback)"""
-
-        results = []
-        for contact in contacts:
-            try:
-                # Use real Hunter client
-                if not self.hunter_client:
-                    raise Exception("Hunter client not initialized")
-
-                hunter_result = await self.hunter_client.find_email(
-                    first_name=contact.get("first_name", ""),
-                    last_name=contact.get("last_name", ""),
-                    company_domain=contact.get("company_domain", "")
-                )
-
-                result = IntegrationResult(
-                    operation=OperationType.EMAIL_ENRICHMENT,
-                    provider=IntegrationProvider.HUNTER,
-                    success=hunter_result.status.value == "success",
-                    data={"email": hunter_result.email, "confidence": hunter_result.confidence} if hunter_result.email else None,
-                    confidence_score=hunter_result.confidence,
-                    cost=hunter_result.cost,
-                    error_message=hunter_result.error_message if not hunter_result.email else None
-                )
-                results.append(result)
-
-            except Exception as e:
-                results.append(IntegrationResult(
-                    operation=OperationType.EMAIL_ENRICHMENT,
-                    provider=IntegrationProvider.HUNTER,
                     success=False,
                     error_message=str(e)
                 ))

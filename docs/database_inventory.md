@@ -33,7 +33,7 @@ Alembic Corporate Multi‑Tenant Schema (authoritative)
   - team_members (`:44`)
     - id, organization_id (FK→organizations), email, name, role, linkedin_url, is_active, last_login, created_at, updated_at
   - integration_sets (`:64`)
-    - id, organization_id (FK), apify_token, apify_actor_id, cufinder_api_key, hunter_api_key, zerobounce_api_key, sendgrid_api_key, openai_api_key, feature_flags, quota_settings, created_at, updated_at
+    - id, organization_id (FK), apify_token, apify_actor_id, cufinder_api_key, sendgrid_api_key, openai_api_key, feature_flags, quota_settings, created_at, updated_at
   - cookie_jars (`:83`)
     - id, organization_id (FK), team_member_id (FK→team_members), encrypted_cookies, encryption_key_id, checksum, status, expires_at, created_at, updated_at
   - prospects (`:104`)
@@ -171,4 +171,3 @@ Recommended Next Actions
 
 Notes
 - This inventory lists every table, module, and primary schema source in the repo with direct file references for full column/type details. For large SQL files defining many feature tables (developer portal, workflow persistence, analytics), see the referenced files to drill into every column/type.
-

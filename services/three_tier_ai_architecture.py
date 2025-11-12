@@ -169,7 +169,7 @@ class FoundationTier:
             service_name="Email Enrichment AI Service",
             service_type=ServiceType.AI_MODEL,
             tier=ArchitectureTier.FOUNDATION,
-            dependencies=["openai_api", "hunter_io", "clearbit"],
+            dependencies=["openai_api", "clearbit"],
             resource_requirements={
                 "cpu": "750m",
                 "memory": "1.5Gi"

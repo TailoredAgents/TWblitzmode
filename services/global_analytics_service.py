@@ -795,12 +795,12 @@ class GlobalAnalyticsService:
     async def _check_external_apis_health(self) -> Dict[str, Any]:
         """Check external API health"""
 
-        # This would ping external services like CUFinder, Hunter.io, etc.
+        # This would ping external services like CUFinder, SendGrid, etc.
         # For now, return a placeholder
 
         return {
             "status": "healthy",
-            "apis_checked": ["cufinder", "hunter", "zerobounce", "sendgrid"],
+            "apis_checked": ["cufinder", "sendgrid"],
             "last_check": datetime.now(timezone.utc).isoformat()
         }
 

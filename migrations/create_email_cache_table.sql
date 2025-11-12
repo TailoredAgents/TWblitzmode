@@ -48,7 +48,7 @@ COMMENT ON COLUMN email_cache.connector_id IS 'ID of the connector whose email w
 COMMENT ON COLUMN email_cache.organization_id IS 'Organization that owns this enrichment data';
 COMMENT ON COLUMN email_cache.email IS 'The enriched email address (NULL if no email found)';
 COMMENT ON COLUMN email_cache.confidence IS 'Confidence score from 0.0 to 1.0 for the email accuracy';
-COMMENT ON COLUMN email_cache.source IS 'Source of the email (e.g., cufinder, hunter, manual)';
+COMMENT ON COLUMN email_cache.source IS 'Source of the email (e.g., cufinder, manual)';
 COMMENT ON COLUMN email_cache.status IS 'Status of the enrichment (e.g., completed, failed, pending)';
 COMMENT ON COLUMN email_cache.created_at IS 'When this cache entry was created';
 
