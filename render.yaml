@@ -90,3 +90,4 @@ services:
         sync: false
     buildCommand: docker build -t blitz-link-worker .
     startCommand: python3 -m services.queue_worker
+
