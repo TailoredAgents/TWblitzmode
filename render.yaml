@@ -51,6 +51,7 @@ services:
     name: blitz-link-frontend
     env: node
     repo: https://github.com/TailoredAgents/TWblitzmode.git
+    rootDir: frontend
     autoDeploy: true
     plan: starter
     region: oregon
