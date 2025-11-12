@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "jest", "@testing-library/jest-dom"]
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "out",
+    "build",
+    "dist",
+    "cypress",
+    "tests",
+    "src/**/__tests__/**",
+    "src/**/__mocks__/**",
+    "database",
+    "scripts"
+  ]
+}

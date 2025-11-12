@@ -1,0 +1,138 @@
+INFO:     Started server process [59868]
+INFO:     Waiting for application startup.
+INFO:__main__:Starting VouchLink AI Introducers API
+INFO:core.db:Database schema initialized successfully
+INFO:__main__:Database schema initialized successfully
+INFO:__main__:Initializing multi-tenant admin system
+INFO:__main__:Creating admin user: Jeffrey@tailoredagents.com
+WARNING:passlib.handlers.bcrypt:(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.13/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+INFO:__main__:Multi-tenant admin system initialized successfully
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8888 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:__main__:Shutting down VouchLink AI Introducers API
+INFO:     Application shutdown complete.
+INFO:     Finished server process [59868]
+INFO:     Started server process [60557]
+INFO:     Waiting for application startup.
+INFO:__main__:Starting VouchLink AI Introducers API
+INFO:core.db:Database schema initialized successfully
+INFO:__main__:Database schema initialized successfully
+INFO:__main__:Initializing multi-tenant admin system
+INFO:__main__:Creating admin user: Jeffrey@tailoredagents.com
+WARNING:passlib.handlers.bcrypt:(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.13/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+INFO:__main__:Multi-tenant admin system initialized successfully
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8888 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:__main__:Shutting down VouchLink AI Introducers API
+INFO:     Application shutdown complete.
+INFO:     Finished server process [60557]
+INFO:__main__:✅ Admin router registered successfully
+INFO:__main__:✅ LinkedIn router registered successfully
+INFO:     Started server process [61092]
+INFO:     Waiting for application startup.
+INFO:__main__:Starting VouchLink AI Introducers API
+INFO:core.db:Database schema initialized successfully
+INFO:__main__:Database schema initialized successfully
+INFO:__main__:Initializing multi-tenant admin system
+INFO:__main__:Creating admin user: Jeffrey@tailoredagents.com
+WARNING:passlib.handlers.bcrypt:(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.13/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+INFO:__main__:Multi-tenant admin system initialized successfully
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8888 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:__main__:Shutting down VouchLink AI Introducers API
+INFO:     Application shutdown complete.
+INFO:     Finished server process [61092]
+  File "/Users/jeffreyhacker/VouchLink-AI/VouchLink-AI-Ai-Agents/api/introducers_app.py", line 83
+    yield
+    ^^^^^
+SyntaxError: 'yield' outside function
+INFO:__main__:✅ Admin router registered successfully
+INFO:__main__:✅ LinkedIn router registered successfully
+INFO:     Started server process [61486]
+INFO:     Waiting for application startup.
+INFO:__main__:Starting VouchLink AI Introducers API
+INFO:core.db:Database schema initialized successfully
+INFO:__main__:Database schema initialized successfully
+INFO:__main__:Initializing multi-tenant admin system
+INFO:__main__:Creating admin user: Jeffrey@tailoredagents.com
+WARNING:passlib.handlers.bcrypt:(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.13/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+INFO:__main__:Multi-tenant admin system initialized successfully
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8888 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:__main__:Shutting down VouchLink AI Introducers API
+INFO:     Application shutdown complete.
+INFO:     Finished server process [61486]
+INFO:__main__:✅ Admin router registered successfully
+INFO:__main__:✅ LinkedIn router registered successfully
+INFO:     Started server process [62823]
+INFO:     Waiting for application startup.
+INFO:__main__:Starting VouchLink AI Introducers API
+INFO:core.db:Database schema initialized successfully
+INFO:__main__:Database schema initialized successfully
+INFO:__main__:Initializing multi-tenant admin system
+INFO:__main__:Creating admin user: Jeffrey@tailoredagents.com
+WARNING:passlib.handlers.bcrypt:(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.13/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+INFO:__main__:Multi-tenant admin system initialized successfully
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8888 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:__main__:Shutting down VouchLink AI Introducers API
+INFO:     Application shutdown complete.
+INFO:     Finished server process [62823]
+INFO:__main__:✅ Admin router registered successfully
+INFO:__main__:✅ LinkedIn router registered successfully
+INFO:     Started server process [63329]
+INFO:     Waiting for application startup.
+INFO:__main__:Starting VouchLink AI Introducers API
+INFO:core.db:Database schema initialized successfully
+INFO:__main__:Database schema initialized successfully
+INFO:__main__:Initializing multi-tenant admin system
+INFO:__main__:Creating admin user: Jeffrey@tailoredagents.com
+WARNING:passlib.handlers.bcrypt:(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.13/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+INFO:__main__:Multi-tenant admin system initialized successfully
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8888 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:__main__:Shutting down VouchLink AI Introducers API
+INFO:     Application shutdown complete.
+INFO:     Finished server process [63329]
