@@ -1,6 +1,6 @@
 databases:
   - name: blitz-link-db
-    plan: free
+    plan: basic-256mb
 services:
   - type: keyvalue
     name: blitz-link-redis
