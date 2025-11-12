@@ -1,4 +1,3 @@
-spec: 1
 databases:
   - name: blitz-link-db
     plan: starter
