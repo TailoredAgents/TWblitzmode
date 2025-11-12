@@ -29,6 +29,32 @@ services:
       - "8888:8888"
     command: uvicorn api.main:app --host 0.0.0.0 --port 8888
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+
+  worker:
+    build: ..
+    depends_on:
+      - db
+      - redis
+    environment:
+      DATABASE_URL: postgresql://vouchlink:vouchlink@db:5432/link_single_tenant
+      REDIS_URL: redis://redis:6379/0
+      PRIMARY_MODEL: gpt-4.1
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      APIFY_TOKEN: ${APIFY_TOKEN}
+      CUFINDER_API_KEY: ${CUFINDER_API_KEY}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      SENDGRID_VERIFIED_SENDER: ${SENDGRID_VERIFIED_SENDER}
+      ENC_KEY: ${ENC_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+    command: python -m services.queue_worker
+
   frontend:
     build:
       context: ../frontend
@@ -42,4 +68,4 @@ services:
 
 volumes:
   dbdata:
-
+  redisdata:

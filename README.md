@@ -26,6 +26,17 @@ Quick Start (Local)
 - Start API: `uvicorn api.main:app --host 0.0.0.0 --port 8888` (or `make be`)
 - Start FE: `cd frontend && npm run dev` (or `make fe`)
 
+Docker Compose (API + Frontend + DB + Redis + Worker)
+
+- One‑liner bring‑up + checks:
+  - `make dev-up` (builds, starts, waits for API, runs startup check, calls /api/health)
+- Useful targets:
+  - `make up` / `make down` / `make clean`
+  - `make logs` (follow api/worker logs)
+  - `make migrate` (run schema bootstrap in container)
+  - `make startup-check` / `make preflight-providers`
+  - Env needed: set values from `blitz/secrets_template.env` in your shell
+
 Health & Preflight
 
 - `GET /api/health` — overall status (providers, schema, version, model).
@@ -70,4 +81,3 @@ Docs
 License / Attribution
 
 - Fill per organization policies.
-
