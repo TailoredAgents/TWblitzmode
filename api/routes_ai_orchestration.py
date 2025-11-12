@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 import logging
 
-from .deps import get_current_user, get_current_admin
+from api.deps_identity_stub import get_current_user, get_current_admin
 from services.openai_agents_orchestrator_simple import ai_orchestrator, AgentRole, WorkflowStage
 from services.ai_agent_feature_gate import is_ai_agents_enabled
 

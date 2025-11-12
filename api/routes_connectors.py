@@ -5,7 +5,7 @@ from datetime import datetime
 import json
 import logging
 
-from .deps import get_current_user
+from api.deps_identity_stub import get_current_user
 from .db_core import (
     get_conn, query, execute,
     get_user_integrations_secure, get_tenant_settings_secure,

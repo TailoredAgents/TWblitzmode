@@ -7,7 +7,7 @@ import base64
 import logging
 import uuid
 
-from .deps import get_current_user
+from api.deps_identity_stub import get_current_user
 from services.automated_workflow_service import auto_process_prospect, MessagePriority
 try:  # pragma: no cover - prefer src layout but fall back to legacy paths
     from src.services.csv_processor import CSVProcessor  # type: ignore

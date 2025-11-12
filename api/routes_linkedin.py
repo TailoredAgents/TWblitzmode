@@ -5,7 +5,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from .mt_db import get_db
 from .security import enc, dec
-from .deps import get_current_user
+from api.deps_identity_stub import get_current_user
 from services.linkedin_service import linkedin_service, LinkedInCampaignRequest
 from services.linkedin_cookie_verifier import verify_linkedin_cookies, VerificationStatus
 

@@ -18,7 +18,8 @@ from pydantic import BaseModel, field_validator
 
 from core.roles import VALID_ROLES, normalize_role
 
-from .auth import get_current_user, get_current_admin, hash_password, role_guard
+from api.deps_identity_stub import get_current_user, get_current_admin
+from .auth import hash_password, role_guard
 from .mt_db import get_db
 from .security import enc, dec
 from services.audit_logging_service import audit_logger, AuditEventType, AuditSeverity
