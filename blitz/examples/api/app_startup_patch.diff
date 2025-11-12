@@ -1,0 +1,17 @@
+--- a/api/main.py
++++ b/api/main.py
+@@
+-from fastapi import FastAPI
++from fastapi import FastAPI
++from blitz.examples.api.logging_middleware import setup_json_logging, logging_middleware
++from blitz.examples.api.health_routes import router as health_router
++import os
+@@
+-app = FastAPI()
++os.environ.setdefault("SERVICE_NAME", "link-api")
++os.environ.setdefault("SERVICE_VERSION", os.getenv("GIT_SHA", "dev"))
++setup_json_logging()
++
++app = FastAPI(title="Link Blitz API", version=os.getenv("SERVICE_VERSION", "dev"))
++app.middleware("http")(logging_middleware)
++app.include_router(health_router)

@@ -1,0 +1,140 @@
+openapi: 3.0.3
+info:
+  title: Link Blitz API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8888
+paths:
+  /api/provisioning/add-team-member:
+    post:
+      summary: Add team member (self-service)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                li_at: { type: string }
+                jsessionid: { type: string }
+                label: { type: string }
+                user_agent: { type: string }
+              required: [name, email]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  user_id: { type: integer }
+                  team_member_id: { type: integer, nullable: true }
+  /api/cookies/status:
+    get:
+      summary: Cookie status
+      responses:
+        '200':
+          description: OK
+  /api/cookies/upload:
+    post:
+      summary: Upload LinkedIn cookies
+      responses:
+        '200': { description: OK }
+  /api/cookies/verify:
+    post:
+      summary: Verify LinkedIn cookies
+      responses:
+        '200': { description: OK }
+  /api/prospects:
+    get:
+      summary: List prospects
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create/Search prospect
+      responses:
+        '200': { description: OK }
+  /api/mutuals/run:
+    post:
+      summary: Run Saswave mutuals
+      responses:
+        '200': { description: OK }
+  /api/mutuals/enrich:
+    post:
+      summary: Run PhantomBuster enrichment (secondary)
+      responses:
+        '200': { description: OK }
+  /api/email/send:
+    post:
+      summary: Send introduction email (SendGrid)
+      responses:
+        '200': { description: OK }
+  /api/providers/health:
+    get:
+      summary: Provider health snapshot
+      responses:
+        '200': { description: OK }
+  /api/audit/recent:
+    get:
+      summary: Recent audit events
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+      responses:
+        '200': { description: OK }
+
+  /api/health:
+    get:
+      summary: Overall health with provider and schema checks
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [healthy, degraded, error] }
+                  version: { type: string }
+                  model: { type: string }
+                  providers:
+                    type: object
+                    properties:
+                      apify: { type: object }
+                      cufinder: { type: object }
+                      sendgrid: { type: object }
+                      phantom: { type: object }
+                  schema:
+                    type: object
+                    additionalProperties: { type: string }
+
+  /api/preflight/providers:
+    post:
+      summary: Run active provider preflight checks (low-cost live calls)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                include:
+                  type: array
+                  items: { type: string, enum: [apify, cufinder, sendgrid, phantom] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apify: { type: object }
+                  cufinder: { type: object }
+                  sendgrid: { type: object }
+                  phantom: { type: object }

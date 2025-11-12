@@ -1,0 +1,45 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: vouchlink
+      POSTGRES_PASSWORD: vouchlink
+      POSTGRES_DB: link_single_tenant
+    ports:
+      - "5433:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+
+  api:
+    build: ..
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://vouchlink:vouchlink@db:5432/link_single_tenant
+      PRIMARY_MODEL: gpt-4.1
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      APIFY_TOKEN: ${APIFY_TOKEN}
+      CUFINDER_API_KEY: ${CUFINDER_API_KEY}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      SENDGRID_VERIFIED_SENDER: ${SENDGRID_VERIFIED_SENDER}
+      ENC_KEY: ${ENC_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+    ports:
+      - "8888:8888"
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8888
+
+  frontend:
+    build:
+      context: ../frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8888
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_MASTER_LOGIN_PASSWORD: Tallwave
+    ports:
+      - "3000:3000"
+    command: npm run start
+
+volumes:
+  dbdata:
+

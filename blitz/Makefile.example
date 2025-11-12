@@ -1,0 +1,37 @@
+# Blitz Makefile (copy to project root in new repo)
+
+.PHONY: bootstrap migrate seed run be fe test lint typecheck smoke
+
+bootstrap:
+	python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt || true
+	cd frontend && npm ci
+
+migrate:
+	python -m api.run_migrations
+
+seed:
+	python - <<'PY'
+print("Seed default tenant/org/admin via startup sanity inside the app on first boot")
+PY
+
+run:
+	uvicorn api.main:app --host 0.0.0.0 --port 8888
+
+fe:
+	cd frontend && npm run dev
+
+be:
+	uvicorn api.main:app --reload --port 8888
+
+test:
+	pytest -q || true
+
+lint:
+	ruff check || true
+
+typecheck:
+	cd frontend && npm run type-check || true
+
+smoke:
+	python blitz/scripts/startup_check.py
+

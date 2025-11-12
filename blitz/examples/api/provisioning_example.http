@@ -1,0 +1,24 @@
+# Provisioning example (use VS Code REST Client or similar)
+
+POST http://localhost:8888/api/provisioning/add-team-member
+Content-Type: application/json
+
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com"
+}
+
+###
+
+GET http://localhost:8888/api/cookies/status
+
+###
+
+POST http://localhost:8888/api/cookies/upload
+Content-Type: application/json
+
+{
+  "li_at": "<LI_AT_COOKIE>",
+  "jsessionid": "<OPTIONAL_JSESSIONID>"
+}
+
