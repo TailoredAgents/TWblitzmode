@@ -204,6 +204,10 @@ def upgrade() -> None:
     )
     op.add_column(
         "prospect_connectors",
+        sa.Column("status", sa.String(length=50), nullable=False, server_default="active"),
+    )
+    op.add_column(
+        "prospect_connectors",
         sa.Column("status_reason", sa.Text(), nullable=True),
     )
     op.add_column(
@@ -277,7 +281,11 @@ def upgrade() -> None:
         "prospect_connectors",
         ["source"],
     )
-    # Note: status column doesn't exist in prospect_connectors, so no index created
+    op.create_index(
+        "idx_prospect_connectors_status",
+        "prospect_connectors",
+        ["status"],
+    )
     op.create_index(
         "idx_prospect_connectors_last_seen",
         "prospect_connectors",
@@ -386,7 +394,7 @@ def downgrade() -> None:
     """Revert connector normalization changes."""
 
     op.drop_index("idx_prospect_connectors_last_seen", table_name="prospect_connectors")
-    # Note: status index was never created, so no drop needed
+    op.drop_index("idx_prospect_connectors_status", table_name="prospect_connectors")
     op.drop_index("idx_prospect_connectors_source", table_name="prospect_connectors")
 
     op.drop_constraint("fk_pc_archived_by", "prospect_connectors", type_="foreignkey")
@@ -403,6 +411,7 @@ def downgrade() -> None:
     op.drop_column("prospect_connectors", "confidence_score")
     op.drop_column("prospect_connectors", "algorithm_version")
     op.drop_column("prospect_connectors", "status_reason")
+    op.drop_column("prospect_connectors", "status")
     op.drop_column("prospect_connectors", "source")
     op.drop_column("prospect_connectors", "team_member_connector_id")
     op.drop_column("prospect_connectors", "tenant_id")
