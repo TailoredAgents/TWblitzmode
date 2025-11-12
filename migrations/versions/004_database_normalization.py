@@ -277,11 +277,7 @@ def upgrade() -> None:
         "prospect_connectors",
         ["source"],
     )
-    op.create_index(
-        "idx_prospect_connectors_status",
-        "prospect_connectors",
-        ["status"],
-    )
+    # Note: status column doesn't exist in prospect_connectors, so no index created
     op.create_index(
         "idx_prospect_connectors_last_seen",
         "prospect_connectors",
@@ -390,7 +386,7 @@ def downgrade() -> None:
     """Revert connector normalization changes."""
 
     op.drop_index("idx_prospect_connectors_last_seen", table_name="prospect_connectors")
-    op.drop_index("idx_prospect_connectors_status", table_name="prospect_connectors")
+    # Note: status index was never created, so no drop needed
     op.drop_index("idx_prospect_connectors_source", table_name="prospect_connectors")
 
     op.drop_constraint("fk_pc_archived_by", "prospect_connectors", type_="foreignkey")
