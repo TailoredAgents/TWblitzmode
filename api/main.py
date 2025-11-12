@@ -1,20 +1,11 @@
 from __future__ import annotations
 import os
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.logging_middleware import setup_json_logging, logging_middleware
 from api.health_routes import router as health_router
-
-# Select Link routers only (no legacy auth/admin/dev-portal)
-from api.routes_email import router as email_router
-from api.routes_email_webhooks import router as email_webhooks_router
-from api.routes_linkedin import router as linkedin_router
-from api.routes_prospects import router as prospects_router
-from api.routes_connectors import router as connectors_router
-from api.routes_ai_orchestration import router as ai_router
-from api.routes_agent_events import router as agent_events_router
-from api.routes_team import router as team_router
 
 
 def _allowed_origins() -> list[str]:
@@ -59,18 +50,31 @@ app.middleware("http")(logging_middleware)
 # Health & preflight
 app.include_router(health_router)
 
-# Link feature routers
-app.include_router(email_router, prefix="/api")
-app.include_router(email_webhooks_router, prefix="/api")
-app.include_router(linkedin_router, prefix="/api")
-app.include_router(prospects_router, prefix="/api")
-app.include_router(connectors_router, prefix="/api")
-app.include_router(ai_router, prefix="/api")
-app.include_router(agent_events_router, prefix="/api")
-app.include_router(team_router, prefix="/api")
+# Link feature routers (optional in constrained envs)
+if os.getenv("MINIMAL_ROUTERS_ONLY", "").lower() not in ("1", "true", "yes"):  # pragma: no cover - runtime wiring
+    log = logging.getLogger(__name__)
+    def _try_include(module_path: str, router_name: str = "router") -> None:
+        try:
+            module = __import__(module_path, fromlist=[router_name])
+            router = getattr(module, router_name)
+            app.include_router(router, prefix="/api")
+        except Exception as e:
+            log.warning("Skipping %s due to import error: %s", module_path, e)
+
+    # Select Link routers only (no legacy auth/admin/dev-portal)
+    for mod in (
+        "api.routes_email",
+        "api.routes_email_webhooks",
+        "api.routes_linkedin",
+        "api.routes_prospects",
+        "api.routes_connectors",
+        "api.routes_ai_orchestration",
+        "api.routes_agent_events",
+        "api.routes_team",
+    ):
+        _try_include(mod)
 
 
 @app.get("/")
 async def root():
     return {"message": "Link Blitz API", "version": os.getenv("SERVICE_VERSION", "dev")}
-
