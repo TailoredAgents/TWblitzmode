@@ -22,6 +22,13 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # 0) Widen alembic_version.version_num to accommodate longer revision IDs
+    op.execute(
+        """
+        ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(64);
+        """
+    )
+
     # 1) Add tenant_id to prospects (corporate) and backfill from organization_id
     op.execute(
         """
