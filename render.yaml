@@ -55,7 +55,7 @@ services:
     autoDeploy: true
     plan: starter
     region: oregon
-    buildCommand: npm ci && npm run build
+    buildCommand: npm install && npm run build
     startCommand: npm run start
     envVars:
       - key: NEXT_PUBLIC_API_URL

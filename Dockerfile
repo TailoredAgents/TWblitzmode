@@ -1,4 +1,4 @@
-# VouchLink AI Prospecting System Docker Configuration
+# Blitz Mode Docker Configuration
 
 FROM python:3.11-slim
 
@@ -23,22 +23,16 @@ COPY requirements-production.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements-production.txt
 
-# Copy application code
-COPY agents/ agents/
+# Copy application code (only directories that exist)
 COPY api/ api/
 COPY src/ src/
 COPY services/ services/
-COPY security/ security/
 COPY core/ core/
 COPY integrations/ integrations/
 COPY scripts/ scripts/
+COPY migrations/ migrations/
 COPY config.py .
-COPY run_vouchlink.py .
-COPY run_server.py .
-COPY start.sh .
-
-# Ensure entrypoint script is executable
-RUN chmod +x start.sh
+COPY alembic.ini .
 
 # Create necessary directories
 RUN mkdir -p data logs
@@ -50,10 +44,10 @@ USER app
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/health || exit 1
+    CMD curl -f http://localhost:8888/health || exit 1
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8888
 
-# Run the application
-CMD ["bash", "start.sh"]
+# Default command (can be overridden by render.yaml dockerCommand)
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8888"]
