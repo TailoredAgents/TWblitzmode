@@ -34,7 +34,8 @@ def _workflow_log(level: LogLevel, message: str, current_user: Dict[str, Any], *
         **extra,
     )
 
-router = APIRouter(prefix="/api/ai", tags=["ai_workflows"])
+# Mounted under prefix="/api" from api.main
+router = APIRouter(prefix="/ai", tags=["ai_workflows"])
 security = HTTPBearer()
 
 # Pydantic models for AI Workflows

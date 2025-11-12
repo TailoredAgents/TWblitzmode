@@ -9,7 +9,8 @@ from api.deps_identity_stub import get_current_user
 from services.linkedin_service import linkedin_service, LinkedInCampaignRequest
 from services.linkedin_cookie_verifier import verify_linkedin_cookies, VerificationStatus
 
-router = APIRouter(prefix="/api/integrations/linkedin", tags=["linkedin"])
+# Mounted under prefix="/api" from api.main
+router = APIRouter(prefix="/integrations/linkedin", tags=["linkedin"])
 
 class CookieUpsert(BaseModel):
     label: Optional[str] = None

@@ -15,7 +15,8 @@ from services.ai_agent_feature_gate import is_ai_agents_enabled
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/ai")
+# Mounted under prefix="/api" from api.main
+router = APIRouter(prefix="/ai")
 
 
 def _resolve_org_id(current_user: Dict[str, Any]) -> int:

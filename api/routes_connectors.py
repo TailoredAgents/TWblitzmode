@@ -14,7 +14,8 @@ from .db_core import (
 from .security import dec
 from services.centralized_logging_service import LogCategory, LogLevel, log_structured
 
-router = APIRouter(prefix="/api", tags=["Connectors"])
+# Mounted under prefix="/api" from api.main
+router = APIRouter(prefix="", tags=["Connectors"])
 logger = logging.getLogger(__name__)
 
 

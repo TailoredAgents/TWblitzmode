@@ -28,7 +28,8 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/agent-events", tags=["agent-events"])
+# Mounted under prefix="/api" from api.main
+router = APIRouter(prefix="/agent-events", tags=["agent-events"])
 
 class EventLevel(str, Enum):
     DEBUG = "debug"

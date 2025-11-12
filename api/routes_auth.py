@@ -21,7 +21,9 @@ from .deps import get_current_user
 from .query_converter import convert_params, convert_query
 
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+# Important: this router is mounted under prefix="/api" in api.main
+# so we use "/auth" here (not "/api/auth") to avoid double prefixing.
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _now() -> datetime:
@@ -350,23 +352,39 @@ async def forgot_password(request: Request) -> Dict[str, Any]:
 @router.get("/login/roster")
 async def login_roster(request: Request) -> Dict[str, Any]:
     # Lightweight roster for login screen; non-authenticated
+    log_structured(
+        LogLevel.INFO,
+        "auth.roster.received",
+        category=LogCategory.SECURITY,
+        client_ip=request.client.host if request.client else None,
+    )
+
     tenant_hint = _tenant_from_headers(request)
+    if not tenant_hint:
+        log_structured(
+            LogLevel.WARNING,
+            "auth.roster.missing_tenant",
+            category=LogCategory.SECURITY,
+        )
+        raise HTTPException(status_code=400, detail="X-Organization-Id header is required")
+
     with get_db_connection() as conn:
-        # Apply tenant scoping if provided
-        if tenant_hint:
-            try:
-                with conn.cursor() as gcur:
-                    gcur.execute(convert_query("SELECT set_config('app.current_tenant_id', ?, true)"), tuple(convert_params((str(tenant_hint),))))
-                    gcur.execute(convert_query("SELECT set_config('app.current_organization_id', ?, true)"), tuple(convert_params((str(tenant_hint),))))
-            except Exception:
-                pass
+        # Apply tenant scoping
+        try:
+            with conn.cursor() as gcur:
+                gcur.execute(convert_query("SELECT set_config('app.current_tenant_id', ?, true)"), tuple(convert_params((str(tenant_hint),))))
+                gcur.execute(convert_query("SELECT set_config('app.current_organization_id', ?, true)"), tuple(convert_params((str(tenant_hint),))))
+        except Exception:
+            pass
+
         with conn.cursor() as cur:
             cur.execute(
                 convert_query(
                     """
                     SELECT id, first_name, last_name, last_login_at
                     FROM users
-                    ORDER BY last_login_at DESC NULLS LAST, id ASC
+                    WHERE is_active = TRUE
+                    ORDER BY last_login_at DESC NULLS LAST, id DESC
                     LIMIT 50
                     """
                 )
@@ -383,6 +401,52 @@ async def login_roster(request: Request) -> Dict[str, Any]:
         for r in rows
     ]
     return {"users": users}
+
+
+@router.get("/login/roster/health")
+async def login_roster_health(request: Request) -> Dict[str, Any]:
+    """Health probe for the roster endpoint with tenant header check and row count."""
+    log_structured(
+        LogLevel.INFO,
+        "auth.roster.health.received",
+        category=LogCategory.SECURITY,
+        client_ip=request.client.host if request.client else None,
+    )
+
+    tenant_hint = _tenant_from_headers(request)
+    if not tenant_hint:
+        log_structured(
+            LogLevel.WARNING,
+            "auth.roster.health.missing_tenant",
+            category=LogCategory.SECURITY,
+        )
+        raise HTTPException(status_code=400, detail="X-Organization-Id header is required")
+
+    count: int = 0
+    with get_db_connection() as conn:
+        # Apply tenant scoping
+        try:
+            with conn.cursor() as gcur:
+                gcur.execute(convert_query("SELECT set_config('app.current_tenant_id', ?, true)"), tuple(convert_params((str(tenant_hint),))))
+                gcur.execute(convert_query("SELECT set_config('app.current_organization_id', ?, true)"), tuple(convert_params((str(tenant_hint),))))
+        except Exception:
+            pass
+
+        with conn.cursor() as cur:
+            cur.execute(
+                convert_query(
+                    "SELECT COUNT(*) AS c FROM users WHERE is_active = TRUE"
+                )
+            )
+            row = cur.fetchone() or {}
+            # Allow either 'c' or the driver-native key
+            cval = row.get("c") or row.get("count") or 0
+            try:
+                count = int(cval)
+            except Exception:
+                count = 0
+
+    return {"tenant": str(tenant_hint), "count": count, "ok": True}
 
 
 @router.post("/logout")

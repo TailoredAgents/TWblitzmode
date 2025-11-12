@@ -28,7 +28,8 @@ from services.centralized_logging_service import LogCategory, LogLevel, log_stru
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/team", tags=["team"])
+# Mounted under prefix="/api" from api.main
+router = APIRouter(prefix="/team", tags=["team"])
 
 TEAM_MANAGER_ROLES = ("admin",)
 

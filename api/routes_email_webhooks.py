@@ -26,7 +26,8 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/webhooks", tags=["Email Webhooks"])
+# Mounted under prefix="/api" from api.main
+router = APIRouter(prefix="/webhooks", tags=["Email Webhooks"])
 
 # ============================================
 # WEBHOOK MODELS
