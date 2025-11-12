@@ -45,8 +45,7 @@ services:
         sync: false
       - key: SECRET_KEY
         sync: false
-    buildCommand: docker build -t blitz-link-api .
-    startCommand: uvicorn api.main:app --host 0.0.0.0 --port 8888
+    dockerCommand: uvicorn api.main:app --host 0.0.0.0 --port 8888
 
   - type: web
     name: blitz-link-frontend
@@ -62,7 +61,7 @@ services:
         fromService:
           name: blitz-link-api
           type: web
-          property: url
+          property: host
       - key: NEXT_PUBLIC_SITE_URL
         sync: false
       - key: NEXT_PUBLIC_MASTER_LOGIN_PASSWORD
@@ -101,6 +100,5 @@ services:
         sync: false
       - key: SECRET_KEY
         sync: false
-    buildCommand: docker build -t blitz-link-worker .
-    startCommand: python3 -m services.queue_worker
+    dockerCommand: python3 -m services.queue_worker
 
