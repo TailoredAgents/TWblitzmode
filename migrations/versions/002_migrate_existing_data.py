@@ -236,11 +236,12 @@ def upgrade() -> None:
         # STEP 5: MIGRATE CONNECTORS AND MUTUALS
         # ===================================================================
 
+        connectors_migrated = 0  # Initialize before if block
+
         if 'mutual_connections' in table_names or 'connectors' in table_names:
             print("🤝 Migrating mutual connections...")
 
             connector_tables = ['mutual_connections', 'connectors', 'prospect_mutuals']
-            connectors_migrated = 0
 
             for table_name in connector_tables:
                 if table_name in table_names:
