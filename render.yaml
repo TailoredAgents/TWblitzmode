@@ -1,11 +1,17 @@
-spec: "1"
+spec: 1
 databases:
   - name: blitz-link-db
     plan: starter
-keyvalue:
-  - name: blitz-link-redis
-    plan: starter
 services:
+  - type: keyvalue
+    name: blitz-link-redis
+    plan: starter
+    region: oregon
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: everywhere
+    maxmemoryPolicy: allkeys-lru
+
   - type: web
     name: blitz-link-api
     env: docker
@@ -20,7 +26,8 @@ services:
           name: blitz-link-db
           property: connectionString
       - key: REDIS_URL
-        fromKeyValue:
+        fromService:
+          type: keyvalue
           name: blitz-link-redis
           property: connectionString
       - key: PRIMARY_MODEL
@@ -75,7 +82,8 @@ services:
           name: blitz-link-db
           property: connectionString
       - key: REDIS_URL
-        fromKeyValue:
+        fromService:
+          type: keyvalue
           name: blitz-link-redis
           property: connectionString
       - key: PRIMARY_MODEL
